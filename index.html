@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Gallery — Pattern Lock Media Gallery</title>
+<meta name="description" content="A private, browser-based media gallery with a selectable pattern lock. Photos and MP4 videos are stored locally with IndexedDB.">
+<style>
+/* ==========================================================================
+   1. Design tokens
+   ========================================================================== */
+:root{
+  --bg:#0a1322; --bg-soft:#0e1a2e; --panel:#122039; --panel-2:#17294a;
+  --border:#243a5e; --text:#e7eefb; --muted:#8fa3c4;
+  --accent:#4f8cff; --accent-ink:#ffffff;
+  --danger:#ff7b8c; --danger-bg:#3a1c28; --ok:#4cd19a; --warn:#f3b64b;
+  --shadow:0 10px 30px rgba(2,8,22,.45); --radius:14px;
+  --font:"Inter","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f2f5fb; --bg-soft:#e8eef8; --panel:#ffffff; --panel-2:#f4f7fc;
+  --border:#d3dcec; --text:#14223d; --muted:#5a6d8c;
+  --accent:#2c6be0; --danger:#c8283f; --danger-bg:#fde8ec; --ok:#12805a; --warn:#9a6400;
+  --shadow:0 8px 24px rgba(30,50,90,.12);
+  color-scheme:light;
+}
+
+/* ==========================================================================
+   2. Base
+   ========================================================================== */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;line-height:1.25}
+p{margin:0}
+a{color:var(--accent)}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.sr-only{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.skip-link{position:absolute;left:12px;top:-60px;background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;z-index:100}
+.skip-link:focus{top:12px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:9px 15px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:background .15s,border-color .15s,transform .05s}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover:not(:disabled){filter:brightness(1.1)}
+.btn.danger{background:var(--danger-bg);border-color:transparent;color:var(--danger)}
+.btn.small{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn.ghost{background:transparent}
+.field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+.field input,.field select,.search{background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:9px 11px;color:var(--text);min-width:0}
+.field input[type=color]{padding:2px;height:38px;width:64px;cursor:pointer}
+
+/* ==========================================================================
+   3. Lock screen
+   ========================================================================== */
+.lock-view{min-height:100vh;display:grid;place-items:center;padding:24px 16px;
+  background:radial-gradient(1000px 500px at 50% -10%,rgba(79,140,255,.16),transparent 60%),var(--bg)}
+.lock-card{width:min(100%,560px);background:var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);padding:28px 26px;display:flex;flex-direction:column;gap:14px}
+.lock-card h1{font-size:22px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px}
+.brand-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(79,140,255,.16);color:var(--accent);font-size:16px}
+.status{min-height:20px;font-size:13px;color:var(--muted)}
+.status.error{color:var(--danger)} .status.ok{color:var(--ok)}
+.fineprint{font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.pad-count{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+
+/* ==========================================================================
+   4. Lock pad (shared by all four styles)
+   ========================================================================== */
+.pad-wrap{position:relative;width:min(100%,300px);margin:0 auto;--tile-accent:var(--accent)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);aspect-ratio:1;width:100%}
+.pad.is-disabled{opacity:.55}
+.pad[data-style="classic"]{touch-action:none}
+.tile{position:relative;display:grid;place-items:center;margin:6px;padding:0;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--border);border-radius:12px;color:var(--text);
+  font-size:clamp(20px,6vw,28px);font-weight:600;line-height:1;transition:background .15s,border-color .15s,color .15s}
+.tile:disabled{cursor:default}
+.tile.is-selected{border-color:var(--tile-accent);color:var(--tile-accent);background:color-mix(in srgb,var(--tile-accent) 16%,var(--panel-2))}
+.tile:hover:not(:disabled):not(.is-selected){border-color:var(--tile-accent)}
+
+/* Tic-Tac-Toe: board lines, X and O marks */
+.pad[data-style="tictactoe"] .tile{margin:0;border:0;border-radius:0;background:transparent}
+.pad[data-style="tictactoe"] .tile.is-selected{background:color-mix(in srgb,var(--tile-accent) 12%,transparent)}
+.pad[data-style="tictactoe"] .tile:nth-child(3n+1),
+.pad[data-style="tictactoe"] .tile:nth-child(3n+2){border-right:2px solid var(--border)}
+.pad[data-style="tictactoe"] .tile:nth-child(-n+6){border-bottom:2px solid var(--border)}
+.pad[data-style="tictactoe"] .tile{font-size:clamp(26px,9vw,38px);font-weight:500}
+
+/* Classic: dots + connecting trail */
+.pad[data-style="classic"] .tile{background:transparent;border:0;margin:0}
+.pad[data-style="classic"] .tile::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);transition:all .15s}
+.pad[data-style="classic"] .tile.is-selected::before{background:var(--tile-accent);border-color:var(--tile-accent);box-shadow:0 0 0 7px color-mix(in srgb,var(--tile-accent) 25%,transparent)}
+.pad[data-style="classic"] .tile:focus-visible{outline-offset:-6px;border-radius:12px}
+.trail{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
+.pad-wrap[data-style="classic"] .trail{display:block}
+.trail polyline{fill:none;stroke:var(--tile-accent);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+
+/* Minimal: numbered tiles with step badge */
+.pad[data-style="minimal"] .tile{border-radius:8px;background:var(--bg-soft);color:var(--muted);font-size:18px;font-weight:500}
+.pad[data-style="minimal"] .tile.is-selected{color:var(--tile-accent)}
+.pad[data-style="minimal"] .tile.is-selected::after{content:attr(data-step);position:absolute;top:5px;right:6px;font-size:11px;font-weight:700;background:var(--tile-accent);color:#fff;border-radius:999px;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px}
+
+/* Custom: shape + animation come from user options */
+.pad[data-shape="circle"] .tile{border-radius:50%}
+.pad[data-shape="square"] .tile{border-radius:3px}
+.pad[data-anim="pop"] .tile.is-selected{animation:tile-pop .22s ease-out}
+.pad[data-anim="pulse"] .tile.is-selected{animation:tile-pulse 1.6s ease-in-out infinite}
+@keyframes tile-pop{0%{transform:scale(.88)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes tile-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--tile-accent) 45%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
+
+/* Mini thumbnails in the style picker */
+.pad-wrap.mini{width:104px}
+.pad-wrap.mini .tile{font-size:12px;margin:2px;border-radius:5px}
+.pad-wrap.mini .pad[data-style="tictactoe"] .tile{margin:0;font-size:15px}
+.pad-wrap.mini .pad[data-style="classic"] .tile::before{width:8px;height:8px;border-width:1.5px}
+.pad-wrap.mini .pad[data-style="classic"] .tile.is-selected::before{box-shadow:0 0 0 3px color-mix(in srgb,var(--tile-accent) 25%,transparent)}
+.pad-wrap.mini .pad[data-style="minimal"] .tile{font-size:10px}
+.pad-wrap.mini .pad[data-style="minimal"] .tile.is-selected::after{font-size:7px;min-width:11px;height:11px;top:1px;right:1px}
+.pad-wrap.mini .trail polyline{stroke-width:7}
+
+/* ==========================================================================
+   5. Style picker
+   ========================================================================== */
+.style-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.style-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:12px 8px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);cursor:pointer;position:relative}
+.style-card strong{font-size:13px}
+.style-card span{font-size:11px;color:var(--muted);line-height:1.35}
+.style-card.is-current{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.style-card:has(input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
+.preview-box{margin-top:14px;padding:14px;border:1px dashed var(--border);border-radius:12px;display:flex;flex-direction:column;gap:10px}
+.preview-box h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);text-align:center}
+.custom-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:4px}
+
+/* ==========================================================================
+   6. App shell
+   ========================================================================== */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:12px clamp(14px,3vw,28px);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.topbar nav{display:flex;gap:4px;margin-left:12px;flex:1}
+.nav-btn{border:0;background:transparent;color:var(--muted);padding:8px 13px;border-radius:9px;cursor:pointer;font-weight:600}
+.nav-btn[aria-current="page"]{background:var(--panel);color:var(--text);box-shadow:0 0 0 1px var(--border) inset}
+main{width:min(100%,1180px);margin:0 auto;padding:24px clamp(14px,3vw,28px) 60px}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.page-head h2{font-size:22px;margin-bottom:3px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.banner{padding:11px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;border:1px solid}
+.banner.error{background:var(--danger-bg);border-color:transparent;color:var(--danger)}
+.banner.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);border-color:color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:11px;color:var(--muted)}
+.meter{height:6px;background:var(--bg-soft);border-radius:99px;overflow:hidden;margin-top:7px}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.meter.high i{background:var(--warn)}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.search{flex:1 1 220px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--panel-2);padding:8px 11px;cursor:pointer;font-weight:600;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.result-line{font-size:12px;color:var(--muted);margin:0 0 10px}
+.select-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;margin-bottom:12px}
+.select-bar .grow{flex:1;font-weight:600}
+
+/* Upload panel */
+.upload-panel{margin-bottom:14px;padding:14px}
+.upload-panel h3{font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.upload-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-top:1px solid var(--border)}
+.upload-row .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.upload-row .state{flex-shrink:0;color:var(--muted);text-align:right;max-width:62%}
+.upload-row .state.ok{color:var(--ok)} .upload-row .state.error{color:var(--danger)} .upload-row .state.warn{color:var(--warn)}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Gallery */
+.gallery{display:grid;gap:14px}
+.gallery.grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.gallery.list{grid-template-columns:1fr}
+.media-card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
+.media-card.is-selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.thumb-slot{background:#060c17;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}
+.thumb-slot img,.thumb-slot video{width:100%;height:100%;object-fit:contain;display:block}
+.img-btn{border:0;padding:0;background:none;width:100%;height:100%;cursor:zoom-in}
+.skeleton,.media-error{font-size:12px;color:var(--muted);padding:14px;text-align:center}
+.media-error{color:var(--warn)}
+.card-body{padding:11px 12px;display:flex;flex-direction:column;gap:9px;flex:1}
+.meta{display:flex;flex-direction:column;min-width:0}
+.name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{font-size:11.5px;color:var(--muted)}
+.card-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:auto}
+.icon-btn{border:1px solid var(--border);background:var(--panel-2);border-radius:8px;width:30px;height:28px;cursor:pointer;font-size:15px;line-height:1;color:var(--muted)}
+.icon-btn.on{color:#f6c453;border-color:#f6c453}
+.select-box{position:absolute;top:8px;left:8px;z-index:2;background:rgba(6,12,23,.75);border-radius:8px;padding:6px;display:flex}
+.select-box input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
+.gallery.list .media-card{flex-direction:row;align-items:stretch}
+.gallery.list .thumb-slot{width:200px;flex-shrink:0;aspect-ratio:16/10}
+.gallery.list .card-body{justify-content:center}
+.empty{grid-column:1/-1;border:1px dashed var(--border);border-radius:16px;padding:48px 18px;text-align:center;background:var(--bg-soft)}
+.empty h3{font-size:15px;margin-bottom:6px}
+.empty p{font-size:12.5px;color:var(--muted)}
+.drop-overlay{position:fixed;inset:0;z-index:60;background:rgba(10,19,34,.82);display:grid;place-items:center;font-size:20px;font-weight:700;border:3px dashed var(--accent);margin:12px;border-radius:20px;pointer-events:none;color:#fff}
+
+/* ==========================================================================
+   7. Settings
+   ========================================================================== */
+.settings-grid{display:grid;gap:16px}
+.settings-grid .card h3{font-size:15px;margin-bottom:4px}
+.settings-grid .card>p.muted{margin-bottom:12px;font-size:13px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin-bottom:10px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.notice-list{margin:0;padding-left:18px;font-size:13px;color:var(--muted);display:grid;gap:5px}
+
+/* ==========================================================================
+   8. Dialogs & toasts
+   ========================================================================== */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow);width:min(92vw,440px)}
+dialog::backdrop{background:rgba(3,8,18,.7)}
+dialog h3{font-size:16px;margin-bottom:8px}
+dialog .dlg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
+.viewer-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.viewer-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-body{display:grid;place-items:center;background:#060c17;border-radius:10px;min-height:200px}
+.viewer-body img,.viewer-body video{max-width:100%;max-height:78vh;display:block}
+#toasts{position:fixed;right:14px;bottom:14px;z-index:90;display:flex;flex-direction:column;gap:8px;max-width:min(92vw,380px)}
+.toast{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);padding:10px 13px;border-radius:10px;box-shadow:var(--shadow);font-size:13px}
+.toast.success{border-left-color:var(--ok)} .toast.error{border-left-color:var(--danger)} .toast.warn{border-left-color:var(--warn)}
+
+/* ==========================================================================
+   9. Responsive & motion
+   ========================================================================== */
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap}
+  .topbar nav{order:3;width:100%;margin-left:0}
+  .lock-card{padding:22px 16px}
+  .gallery.list .media-card{flex-direction:column}
+  .gallery.list .thumb-slot{width:100%}
+  #toasts{left:14px;right:14px;max-width:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Skip to content</a>
+
+<!-- ======================= LOCK SCREEN ======================= -->
+<section id="lockView" class="lock-view hidden" aria-labelledby="lockTitle">
+  <div class="lock-card">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span>Vault Gallery</span></div>
+    <div>
+      <h1 id="lockTitle">Loading…</h1>
+      <p id="lockSub" class="muted"></p>
+    </div>
+    <div id="lockBody"></div>
+    <p id="lockStatus" class="status" role="status" aria-live="polite"></p>
+    <p class="fineprint">Your media stays in this browser on this device. The lock is a privacy screen to keep casual viewers out — it is not strong security.</p>
+  </div>
+</section>
+
+<!-- ======================= APP SHELL ======================= -->
+<div id="shell" class="hidden">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span>Vault Gallery</span></div>
+    <nav aria-label="Main">
+      <button class="nav-btn" type="button" data-tab="gallery" aria-current="page">Gallery</button>
+      <button class="nav-btn" type="button" data-tab="settings">Settings</button>
+    </nav>
+    <button id="lockNow" class="btn" type="button">Lock workspace</button>
+  </header>
+
+  <main id="mainContent" tabindex="-1">
+    <!-- ---------- Gallery ---------- -->
+    <section id="galleryPanel" aria-labelledby="galleryTitle">
+      <div class="page-head">
+        <div>
+          <h2 id="galleryTitle">Media library</h2>
+          <p class="muted">Photos and videos saved privately in this browser. Not cloud storage.</p>
+        </div>
+        <div>
+          <button id="addBtn" class="btn primary" type="button">＋ Add media</button>
+          <input id="mediaInput" class="sr-only" type="file" multiple accept="image/*,video/*,.mp4,.m4v,.mov,.webm" tabindex="-1" aria-label="Choose images or videos to add">
+        </div>
+      </div>
+
+      <div id="dbError" class="banner error hidden" role="alert"></div>
+      <div id="lowSpace" class="banner warn hidden" role="status"></div>
+
+      <div class="stats">
+        <div class="stat"><b id="statTotal">0</b><span>Total files</span></div>
+        <div class="stat"><b id="statPhotos">0</b><span>Photos</span></div>
+        <div class="stat"><b id="statVideos">0</b><span>Videos</span></div>
+        <div class="stat"><b id="statStorage">0 B</b><span id="statStorageSub">Storage used</span><div class="meter" id="quotaMeter"><i></i></div></div>
+      </div>
+
+      <div id="uploadPanel" class="card upload-panel hidden" aria-live="polite">
+        <h3><span id="uploadSpinner" class="spinner" aria-hidden="true"></span><span id="uploadTitle">Saving files…</span></h3>
+        <div id="uploadRows"></div>
+      </div>
+
+      <div class="toolbar">
+        <input id="searchInput" class="search" type="search" placeholder="Search by file name" aria-label="Search by file name">
+        <select id="filterSelect" class="search" aria-label="Filter">
+          <option value="all">All files</option><option value="image">Images</option><option value="video">Videos</option><option value="favorites">Favourites</option>
+        </select>
+        <select id="sortSelect" class="search" aria-label="Sort by">
+          <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">File name (A–Z)</option><option value="size">Size (largest)</option>
+        </select>
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" id="viewGrid" aria-pressed="true">Grid</button>
+          <button type="button" id="viewList" aria-pressed="false">List</button>
+        </div>
+        <button id="selectToggle" class="btn" type="button" aria-pressed="false">Select</button>
+      </div>
+
+      <div id="selectBar" class="select-bar hidden">
+        <span class="grow" id="selectCount">0 selected</span>
+        <button class="btn small" type="button" id="selectAll">Select all shown</button>
+        <button class="btn small danger" type="button" id="deleteSelected">Delete selected</button>
+        <button class="btn small" type="button" id="selectDone">Done</button>
+      </div>
+
+      <p id="resultLine" class="result-line" aria-live="polite"></p>
+      <div id="gallery" class="gallery grid"></div>
+    </section>
+
+    <!-- ---------- Settings ---------- -->
+    <section id="settingsPanel" class="hidden" aria-labelledby="settingsTitle">
+      <div class="page-head"><div><h2 id="settingsTitle">Settings</h2><p class="muted">Personalise the lock, appearance and storage.</p></div></div>
+      <div class="settings-grid">
+        <div class="card">
+          <h3>Lock style</h3>
+          <p class="muted">Choose how the lock looks. Changing the style never changes your saved sequence or your media.</p>
+          <div id="settingsStyleHost"></div>
+          <div class="actions" style="justify-content:flex-start"><button id="applyStyle" class="btn primary" type="button">Apply style</button></div>
+        </div>
+
+        <div class="card">
+          <h3>Lock sequence</h3>
+          <p class="muted">Your sequence is stored as a salted hash, never as plain text. You will be asked for the current sequence before choosing a new one.</p>
+          <button id="changeSeq" class="btn" type="button">Change sequence</button>
+        </div>
+
+        <div class="card">
+          <h3>Appearance &amp; behaviour</h3>
+          <div class="row">
+            <label class="field">Theme
+              <select id="themeSelect"><option value="dark">Dark navy</option><option value="light">Light</option></select>
+            </label>
+            <label class="field">Default gallery view
+              <select id="viewSelect"><option value="grid">Grid</option><option value="list">List</option></select>
+            </label>
+            <label class="field">Auto-lock after inactivity
+              <select id="autoLockSelect"><option value="0">Off</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Storage</h3>
+          <dl class="kv">
+            <dt>Your media</dt><dd id="setUsed">—</dd>
+            <dt>Browser quota (estimate)</dt><dd id="setQuota">—</dd>
+            <dt>Persistent storage</dt><dd id="setPersist">—</dd>
+          </dl>
+          <p class="muted" style="margin-bottom:10px">Files live in this browser's IndexedDB on this device only. Clearing site data, using a different browser or profile, or some private-browsing modes will remove or hide them. Keep your originals elsewhere.</p>
+          <button id="persistBtn" class="btn" type="button">Request persistent storage</button>
+        </div>
+
+        <div class="card">
+          <h3>Security &amp; privacy</h3>
+          <ul class="notice-list">
+            <li>This is a front-end privacy lock. It is <strong>not</strong> real authentication: anyone who can use this browser profile or open its developer tools can reach the stored files.</li>
+            <li>Media is <strong>not encrypted</strong>. A 4–9 tile sequence has too few possible combinations to protect an encryption key, so claiming encryption would be misleading.</li>
+            <li>Nothing is uploaded anywhere. Cross-device access or real accounts would need a backend with authentication, authorization and server-side storage.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>Reset</h3>
+          <p class="muted">Resetting preferences restores theme, lock style, view and auto-lock to defaults. It does <strong>not</strong> touch your sequence or media.</p>
+          <div class="row">
+            <button id="resetPrefs" class="btn" type="button">Reset preferences</button>
+            <button id="eraseAll" class="btn danger" type="button">Erase all data…</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true">Drop files to add them to your gallery</div>
+<div id="toasts" aria-live="polite"></div>
+
+<!-- ======================= DIALOGS ======================= -->
+<dialog id="confirmDialog" aria-labelledby="confirmTitle">
+  <h3 id="confirmTitle"></h3>
+  <p id="confirmMsg" class="muted"></p>
+  <label id="confirmField" class="field hidden" style="margin-top:12px"><span id="confirmHint"></span><input id="confirmInput" type="text" autocomplete="off"></label>
+  <div class="dlg-actions"><button id="confirmCancel" class="btn" type="button">Cancel</button><button id="confirmOk" class="btn primary" type="button">Confirm</button></div>
+</dialog>
+
+<dialog id="renameDialog" aria-labelledby="renameTitle">
+  <h3 id="renameTitle">Rename file</h3>
+  <label class="field">File name<input id="renameInput" type="text" maxlength="150" autocomplete="off"></label>
+  <p id="renameError" class="status error" role="alert"></p>
+  <div class="dlg-actions"><button id="renameCancel" class="btn" type="button">Cancel</button><button id="renameOk" class="btn primary" type="button">Save</button></div>
+</dialog>
+
+<dialog id="viewerDialog" class="viewer" aria-label="Media viewer">
+  <div class="viewer-head"><strong id="viewerName"></strong><button id="viewerClose" class="btn small" type="button">Close</button></div>
+  <div id="viewerBody" class="viewer-body"></div>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+/* ==========================================================================
+   1. Constants & small helpers
+   ========================================================================== */
+const PREFS_KEY = 'vaultPrefsV2';
+const CRED_KEY = 'vaultCredentialV2';
+const LEGACY_PATTERN_KEY = 'vaultPatternV1';   // original app: plain-text pattern
+const LEGACY_MEDIA_KEY = 'vaultMediaV1';       // original app: base64 media in localStorage
+const MIN_TILES = 4, MAX_TILES = 9;
+const MAX_ATTEMPTS = 5, LOCKOUT_MS = 30000;
+
+const DEFAULT_PREFS = {
+  theme: 'dark', lockStyle: 'tictactoe', view: 'grid', autoLockMinutes: 5,
+  custom: { accent: '#4f8cff', symbols: 'xo', shape: 'rounded', animation: 'pop' }
+};
+const LOCK_STYLES = {
+  tictactoe: { label: 'Tic-Tac-Toe', desc: 'Board lines with X and O marks.' },
+  classic:   { label: 'Classic pattern', desc: 'Connect dots by dragging or tapping.' },
+  minimal:   { label: 'Minimal grid', desc: 'Numbered tiles, calm and clean.' },
+  custom:    { label: 'Custom', desc: 'Your colour, symbols, shape and animation.' }
+};
+const EXT_MIME = {
+  mp4:'video/mp4', m4v:'video/mp4', mov:'video/quicktime', webm:'video/webm', mkv:'video/x-matroska',
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', avif:'image/avif', bmp:'image/bmp'
+};
+
+const $ = (sel, root = document) => root.querySelector(sel);
+
+/** Tiny DOM builder: el('button', {class:'btn', onclick: fn}, 'Label') */
+function el(tag, attrs = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [key, val] of Object.entries(attrs)) {
+    if (val === null || val === undefined || val === false) continue;
+    if (key === 'class') node.className = val;
+    else if (key === 'text') node.textContent = val;
+    else if (key === 'dataset') Object.assign(node.dataset, val);
+    else if (key.startsWith('on') && typeof val === 'function') node.addEventListener(key.slice(2), val);
+    else node.setAttribute(key, val === true ? '' : val);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    node.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return node;
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let i = -1;
+  do { bytes /= 1024; i++; } while (bytes >= 1024 && i < units.length - 1);
+  return bytes.toFixed(bytes >= 100 ? 0 : 1) + ' ' + units[i];
+}
+const formatDate = ms => new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const uid = () => Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 10);
+const extOf = name => (name.split('.').pop() || '').toLowerCase();
+
+function toast(message, type = 'info', ms = 4500) {
+  const node = el('div', { class: 'toast ' + type, role: type === 'error' ? 'alert' : 'status', text: message });
+  $('#toasts').append(node);
+  setTimeout(() => node.remove(), ms);
+}
+
+/* ==========================================================================
+   2. Preferences (small data only -> localStorage)
+   ========================================================================== */
+let prefs = loadPrefs();
+
+function loadPrefs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      const merged = { ...DEFAULT_PREFS, ...raw, custom: { ...DEFAULT_PREFS.custom, ...(raw.custom || {}) } };
+      if (!LOCK_STYLES[merged.lockStyle]) merged.lockStyle = DEFAULT_PREFS.lockStyle;
+      return merged;
+    }
+  } catch (e) { /* fall through to defaults */ }
+  return JSON.parse(JSON.stringify(DEFAULT_PREFS));
+}
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); return true; }
+  catch (e) { toast('Could not save preferences (browser storage is blocked).', 'error'); return false; }
+}
+function applyTheme() { document.documentElement.dataset.theme = prefs.theme === 'light' ? 'light' : 'dark'; }
+
+/* ==========================================================================
+   3. Lock sequence storage (salted PBKDF2 hash, never plain text)
+   ========================================================================== */
+const hasSubtle = () => !!(window.crypto && crypto.subtle);
+const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const fromB64 = str => Uint8Array.from(atob(str), c => c.charCodeAt(0));
+
+function weakHash(str) { // fallback only when Web Crypto is unavailable (non-secure context)
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+async function deriveHash(sequence, salt, iterations, alg) {
+  const text = sequence.join('-');
+  if (alg === 'pbkdf2') {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(text), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256);
+    return toB64(bits);
+  }
+  return weakHash(text + toB64(salt));
+}
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+function loadCredential() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CRED_KEY) || 'null');
+    if (c && c.hash && c.salt) return c;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+async function saveCredential(sequence) {
+  const salt = new Uint8Array(16);
+  (window.crypto || { getRandomValues: a => a.map(() => Math.floor(Math.random() * 256)) }).getRandomValues(salt);
+  const alg = hasSubtle() ? 'pbkdf2' : 'fallback';
+  const iterations = 150000;
+  const hash = await deriveHash(sequence, salt, iterations, alg);
+  localStorage.setItem(CRED_KEY, JSON.stringify({ v: 2, alg, iter: iterations, salt: toB64(salt), hash }));
+}
+async function verifySequence(sequence) {
+  const cred = loadCredential();
+  if (!cred) return false;
+  if (cred.alg === 'pbkdf2' && !hasSubtle()) {
+    throw new Error('Secure hashing is unavailable here. Open the app over https:// or http://localhost.');
+  }
+  const hash = await deriveHash(sequence, fromB64(cred.salt), cred.iter, cred.alg);
+  return safeEqual(hash, cred.hash);
+}
+/** The original app kept a plain-text pattern. Carry it over (hashed) so old media stays reachable. */
+async function migrateLegacyPattern() {
+  if (loadCredential()) return;
+  try {
+    const p = JSON.parse(localStorage.getItem(LEGACY_PATTERN_KEY) || 'null');
+    const valid = Array.isArray(p) && p.length >= MIN_TILES && p.length <= MAX_TILES &&
+      p.every(n => Number.isInteger(n) && n >= 0 && n < 9) && new Set(p).size === p.length;
+    if (valid) {
+      await saveCredential(p);
+      localStorage.removeItem(LEGACY_PATTERN_KEY);
+      state.legacyNotice = true;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+/* ==========================================================================
+   4. IndexedDB (metadata and binary Blobs in separate stores)
+   ========================================================================== */
+const DB_NAME = 'vaultMediaDB', DB_VERSION = 2, META = 'meta', FILES = 'files';
+let dbPromise = null;
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) { reject(new Error('IndexedDB is not available in this browser.')); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = ev => {
+      const db = req.result, tx = req.transaction;
+      if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES, { keyPath: 'id' });
+      // v1 (earlier fix) kept {blob,name,type,added} in a single "media" store: move it over.
+      if (ev.oldVersion === 1 && db.objectStoreNames.contains('media')) {
+        tx.objectStore('media').openCursor().onsuccess = e => {
+          const cur = e.target.result;
+          if (!cur) { db.deleteObjectStore('media'); return; }
+          const o = cur.value;
+          tx.objectStore(META).put({ id: o.id, name: o.name, kind: o.type, mime: o.mime || o.blob.type, size: o.blob.size, created: o.added || Date.now(), favorite: false });
+          tx.objectStore(FILES).put({ id: o.id, blob: o.blob });
+          cur.continue();
+        };
+      }
+    };
+    req.onsuccess = () => { const db = req.result; db.onversionchange = () => db.close(); resolve(db); };
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('The database is blocked by another open tab. Close other tabs of this app and reload.'));
+  });
+  return dbPromise;
+}
+
+/** Runs `work(tx)` and resolves only when the transaction has truly COMPLETED (data is durable). */
+async function runTx(stores, mode, work) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(stores, mode);
+    let out;
+    tx.oncomplete = () => resolve(out instanceof IDBRequest ? out.result : out);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('The database transaction was aborted.'));
+    try { out = work(tx); } catch (err) { try { tx.abort(); } catch (e) { /* already done */ } reject(err); }
+  });
+}
+
+const listMeta = () => runTx([META], 'readonly', tx => tx.objectStore(META).getAll());
+const getBlob = async id => {
+  const rec = await runTx([FILES], 'readonly', tx => tx.objectStore(FILES).get(id));
+  return rec ? rec.blob : null;
+};
+async function saveMedia(file, kind, extra = {}) {
+  const id = uid();
+  const mime = file.type || EXT_MIME[extOf(file.name)] || (kind === 'video' ? 'video/mp4' : 'image/jpeg');
+  const meta = { id, name: file.name, kind, mime, size: file.size, created: Date.now(), favorite: false, duration: extra.duration || null };
+  const blob = file.slice(0, file.size, mime);
+  await runTx([META, FILES], 'readwrite', tx => {
+    tx.objectStore(FILES).put({ id, blob });
+    tx.objectStore(META).put(meta);
+  });
+  return meta;
+}
+const updateMeta = (id, patch) => runTx([META], 'readwrite', tx => {
+  const store = tx.objectStore(META);
+  store.get(id).onsuccess = e => { if (e.target.result) store.put({ ...e.target.result, ...patch }); };
+});
+const deleteMedia = ids => runTx([META, FILES], 'readwrite', tx => {
+  ids.forEach(id => { tx.objectStore(META).delete(id); tx.objectStore(FILES).delete(id); });
+});
+const clearAllMedia = () => runTx([META, FILES], 'readwrite', tx => { tx.objectStore(META).clear(); tx.objectStore(FILES).clear(); });
+
+/* ==========================================================================
+   5. Lock pad component (one grid, four visual styles)
+   ========================================================================== */
+function createLockPad(host, opts = {}) {
+  const { onChange = () => {}, readOnly = false, mini = false } = opts;
+  let style = opts.style || 'tictactoe';
+  let custom = { ...DEFAULT_PREFS.custom, ...(opts.custom || {}) };
+  let selected = [], dragging = false, disabled = false;
+
+  const grid = el('div', { class: 'pad', role: 'group', 'aria-label': 'Lock grid with nine tiles' });
+  const tiles = [];
+  for (let i = 0; i < 9; i++) {
+    const tile = el('button', { type: 'button', class: 'tile', 'aria-pressed': 'false', disabled: readOnly, tabindex: mini ? '-1' : null });
+    tile.dataset.index = i;
+    tiles.push(tile); grid.append(tile);
+  }
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 300 300'); svg.setAttribute('class', 'trail'); svg.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS(NS, 'polyline'); svg.append(line);
+  const wrap = el('div', { class: 'pad-wrap' + (mini ? ' mini' : '') }, grid, svg);
+  if (mini) wrap.setAttribute('aria-hidden', 'true');
+  host.replaceChildren(wrap);
+
+  function symbolFor(step) {
+    const mode = style === 'tictactoe' ? 'xo' : custom.symbols;
+    switch (mode) {
+      case 'numbers': return String(step + 1);
+      case 'dots': return '●';
+      case 'shapes': return ['◆', '▲', '●', '■'][step % 4];
+      default: return step % 2 === 0 ? '×' : '○';
+    }
+  }
+  function applyStyle() {
+    grid.dataset.style = style; wrap.dataset.style = style;
+    if (style === 'custom') {
+      wrap.style.setProperty('--tile-accent', custom.accent);
+      grid.dataset.shape = custom.shape; grid.dataset.anim = custom.animation;
+    } else {
+      wrap.style.removeProperty('--tile-accent');
+      delete grid.dataset.shape; grid.dataset.anim = style === 'minimal' ? 'none' : 'pop';
+    }
+  }
+  function refresh() {
+    tiles.forEach((tile, i) => {
+      const step = selected.indexOf(i), on = step >= 0;
+      tile.classList.toggle('is-selected', on);
+      tile.setAttribute('aria-pressed', String(on));
+      if (on) tile.dataset.step = step + 1; else delete tile.dataset.step;
+      tile.textContent = style === 'minimal' ? String(i + 1) : (on && style !== 'classic' ? symbolFor(step) : '');
+      tile.setAttribute('aria-label', `Tile ${i + 1} of 9, row ${Math.floor(i / 3) + 1}, column ${(i % 3) + 1}${on ? `, step ${step + 1}` : ''}`);
+    });
+    line.setAttribute('points', selected.map(i => `${(i % 3) * 100 + 50},${Math.floor(i / 3) * 100 + 50}`).join(' '));
+  }
+  function add(index) {
+    if (disabled || readOnly || selected.includes(index) || selected.length >= MAX_TILES) return;
+    selected.push(index); refresh(); onChange([...selected]);
+  }
+  const tileAt = (x, y) => {
+    const hit = document.elementFromPoint(x, y);
+    const tile = hit && hit.closest && hit.closest('.tile');
+    return tile && grid.contains(tile) ? Number(tile.dataset.index) : null;
+  };
+
+  // Clicks: all styles, including keyboard (Enter/Space produce click with detail 0).
+  grid.addEventListener('click', e => {
+    const tile = e.target.closest('.tile'); if (!tile) return;
+    if (style === 'classic' && e.detail !== 0) return;   // classic handles pointer input itself
+    add(Number(tile.dataset.index));
+  });
+  // Classic style: press and drag across dots.
+  grid.addEventListener('pointerdown', e => {
+    if (style !== 'classic' || readOnly || disabled) return;
+    dragging = true;
+    try { grid.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
+    const t = tileAt(e.clientX, e.clientY); if (t !== null) add(t);
+  });
+  grid.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const t = tileAt(e.clientX, e.clientY); if (t !== null) add(t);
+  });
+  const stopDrag = () => { dragging = false; };
+  grid.addEventListener('pointerup', stopDrag);
+  grid.addEventListener('pointercancel', stopDrag);
+  // Arrow keys move focus around the grid.
+  grid.addEventListener('keydown', e => {
+    const i = tiles.indexOf(document.activeElement); if (i < 0) return;
+    const next = { ArrowRight: i % 3 < 2 ? i + 1 : null, ArrowLeft: i % 3 > 0 ? i - 1 : null, ArrowDown: i + 3 < 9 ? i + 3 : null, ArrowUp: i - 3 >= 0 ? i - 3 : null }[e.key];
+    if (next !== undefined && next !== null) { e.preventDefault(); tiles[next].focus(); }
+  });
+
+  applyStyle(); refresh();
+  return {
+    get: () => [...selected],
+    set(list) { selected = list.slice(0, MAX_TILES); refresh(); },
+    clear() { selected = []; refresh(); onChange([]); },
+    undo() { selected.pop(); refresh(); onChange([...selected]); },
+    setStyle(newStyle, newCustom) { style = newStyle; if (newCustom) custom = { ...custom, ...newCustom }; applyStyle(); refresh(); },
+    setDisabled(value) { disabled = value; grid.classList.toggle('is-disabled', value); tiles.forEach(t => { t.disabled = value || readOnly; }); },
+    focus() { tiles[0].focus(); }
+  };
+}
+
+/* ==========================================================================
+   6. Lock style picker (live preview, no changes until the caller applies)
+   ========================================================================== */
+let pickerCounter = 0;
+function mountStylePicker(host, { style, custom }) {
+  const groupName = 'lockstyle-' + (++pickerCounter);
+  let current = LOCK_STYLES[style] ? style : 'tictactoe';
+  const settings = { ...DEFAULT_PREFS.custom, ...custom };
+  const minis = {}, labels = {};
+
+  const cards = el('div', { class: 'style-cards', role: 'radiogroup', 'aria-label': 'Lock style' });
+  Object.entries(LOCK_STYLES).forEach(([key, info]) => {
+    const radio = el('input', { type: 'radio', name: groupName, value: key, class: 'sr-only', checked: key === current });
+    const thumb = el('div');
+    const label = el('label', { class: 'style-card' }, radio, thumb, el('strong', { text: info.label }), el('span', { text: info.desc }));
+    cards.append(label);
+    minis[key] = createLockPad(thumb, { style: key, custom: settings, mini: true, readOnly: true });
+    minis[key].set([0, 1, 4, 5, 8]);
+    labels[key] = label;
+    radio.addEventListener('change', () => { current = key; sync(); });
+  });
+
+  const hint = el('p', { class: 'pad-count', text: 'Try it: tap or drag. Nothing here is saved.' });
+  const previewHost = el('div');
+  const previewPad = createLockPad(previewHost, { style: current, custom: settings, onChange: () => {} });
+  const resetBtn = el('button', { class: 'btn small', type: 'button', text: 'Clear preview', onclick: () => previewPad.clear() });
+
+  const accent = el('input', { type: 'color', value: settings.accent, id: groupName + '-accent' });
+  const symbols = el('select', { id: groupName + '-sym' },
+    ...[['xo', 'X and O'], ['numbers', 'Numbers'], ['dots', 'Dots'], ['shapes', 'Shapes']].map(([v, t]) => el('option', { value: v, text: t })));
+  const shape = el('select', { id: groupName + '-shape' },
+    ...[['rounded', 'Rounded'], ['circle', 'Circle'], ['square', 'Square']].map(([v, t]) => el('option', { value: v, text: t })));
+  const anim = el('select', { id: groupName + '-anim' },
+    ...[['pop', 'Pop'], ['pulse', 'Pulse'], ['none', 'None']].map(([v, t]) => el('option', { value: v, text: t })));
+  symbols.value = settings.symbols; shape.value = settings.shape; anim.value = settings.animation;
+  const customPanel = el('div', { class: 'custom-options' },
+    el('label', { class: 'field' }, 'Accent colour', accent),
+    el('label', { class: 'field' }, 'Symbols', symbols),
+    el('label', { class: 'field' }, 'Tile shape', shape),
+    el('label', { class: 'field' }, 'Selection animation', anim));
+  const onCustomInput = () => {
+    settings.accent = accent.value; settings.symbols = symbols.value; settings.shape = shape.value; settings.animation = anim.value;
+    minis.custom.setStyle('custom', settings); sync();
+  };
+  [accent, symbols, shape, anim].forEach(c => c.addEventListener('input', onCustomInput));
+
+  function sync() {
+    previewPad.setStyle(current, settings);
+    customPanel.classList.toggle('hidden', current !== 'custom');
+    Object.entries(labels).forEach(([k, l]) => l.classList.toggle('is-current', k === current));
+  }
+  host.replaceChildren(cards, el('div', { class: 'preview-box' }, el('h3', { text: 'Live preview' }), previewHost, hint, el('div', { class: 'actions' }, resetBtn), customPanel));
+  sync();
+  return { getValue: () => ({ style: current, custom: { ...settings } }) };
+}
+
+/* ==========================================================================
+   7. App state
+   ========================================================================== */
+const state = {
+  items: [], filter: 'all', sort: 'newest', search: '',
+  selectMode: false, selected: new Set(),
+  urls: new Set(), renderToken: 0, observer: null,
+  uploading: false, queue: [],
+  idleTimer: null, legacyNotice: false, dbOk: true, tab: 'gallery'
+};
+
+/* ==========================================================================
+   8. Lock screen controller (unlock / first-time setup / change sequence)
+   ========================================================================== */
+const lock = { mode: 'unlock', stage: 'enter', first: null, pad: null, picker: null, style: null, custom: null, failed: 0, lockedUntil: 0, busy: false };
+
+function setLockStatus(message, type = '') {
+  const node = $('#lockStatus'); node.textContent = message; node.className = 'status' + (type ? ' ' + type : '');
+}
+function showLockView(mode, message) {
+  lock.mode = mode; lock.first = null;
+  lock.stage = mode === 'setup' ? 'style' : mode === 'change' ? 'verify' : 'enter';
+  clearTimeout(state.idleTimer);
+  $('#shell').classList.add('hidden');
+  $('#lockView').classList.remove('hidden');
+  renderLockStage();
+  if (message) setLockStatus(message);
+}
+function actionRow(...buttons) { return el('div', { class: 'actions' }, buttons); }
+
+function renderLockStage() {
+  const { mode, stage } = lock;
+  const body = $('#lockBody'); body.replaceChildren(); setLockStatus('');
+  const title = $('#lockTitle'), sub = $('#lockSub');
+
+  if (stage === 'style') {
+    title.textContent = 'Welcome — choose your lock style';
+    sub.textContent = 'Pick the interface you like best. You can change it later in Settings without losing your sequence.';
+    const host = el('div'); body.append(host);
+    lock.picker = mountStylePicker(host, { style: prefs.lockStyle, custom: prefs.custom });
+    body.append(actionRow(el('button', { class: 'btn primary', type: 'button', text: 'Continue', onclick: () => {
+      const v = lock.picker.getValue(); lock.style = v.style; lock.custom = v.custom; lock.stage = 'create'; renderLockStage();
+    } })));
+    return;
+  }
+
+  const copy = {
+    enter:   ['Unlock your gallery', 'Enter your sequence.', 'Unlock'],
+    verify:  ['Confirm it’s you', 'Enter your current sequence to continue.', 'Continue'],
+    create:  ['Create your sequence', `Select ${MIN_TILES}–${MAX_TILES} tiles in an order you will remember.`, 'Continue'],
+    confirm: ['Confirm your sequence', 'Enter the same sequence once more.', 'Save sequence']
+  }[stage];
+  title.textContent = copy[0]; sub.textContent = copy[1];
+
+  const style = mode === 'setup' ? lock.style : prefs.lockStyle;
+  const custom = mode === 'setup' ? lock.custom : prefs.custom;
+  const padHost = el('div'), count = el('p', { class: 'pad-count' });
+  const primary = el('button', { class: 'btn primary', type: 'button', text: copy[2], disabled: true, onclick: () => onPrimary() });
+  const updateCount = sel => {
+    count.textContent = sel.length ? `${sel.length} tile${sel.length === 1 ? '' : 's'} selected` : `Select at least ${MIN_TILES} tiles`;
+    primary.disabled = sel.length < MIN_TILES || lock.busy;
+  };
+  lock.pad = createLockPad(padHost, { style, custom, onChange: updateCount });
+  updateCount([]);
+
+  const extras = [];
+  if (mode === 'setup' && stage === 'create') extras.push(el('button', { class: 'btn ghost', type: 'button', text: 'Back', onclick: () => { lock.stage = 'style'; renderLockStage(); } }));
+  if (mode === 'change') extras.push(el('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onclick: () => enterApp('settings') }));
+  body.append(padHost, count, actionRow(
+    el('button', { class: 'btn', type: 'button', text: 'Undo', onclick: () => lock.pad.undo() }),
+    el('button', { class: 'btn', type: 'button', text: 'Clear', onclick: () => lock.pad.clear() }),
+    ...extras, primary));
+  lock.pad.focus();
+}
+
+function setBusy(value) {
+  lock.busy = value;
+  if (lock.pad) lock.pad.setDisabled(value);
+  document.querySelectorAll('#lockBody .btn').forEach(b => { if (value) b.disabled = true; });
+  if (!value) { const sel = lock.pad ? lock.pad.get().length : 0; document.querySelectorAll('#lockBody .btn.primary').forEach(b => { b.disabled = sel < MIN_TILES && lock.stage !== 'style'; }); document.querySelectorAll('#lockBody .btn:not(.primary)').forEach(b => { b.disabled = false; }); }
+}
+
+/** Checks the entered sequence, applying the failed-attempt cool-down. Resolves true/false/null(error). */
+async function checkEntered() {
+  const wait = lock.lockedUntil - Date.now();
+  if (wait > 0) { setLockStatus(`Too many incorrect attempts. Try again in ${Math.ceil(wait / 1000)} seconds.`, 'error'); return null; }
+  setBusy(true);
+  let ok;
+  try { ok = await verifySequence(lock.pad.get()); }
+  catch (err) { setBusy(false); setLockStatus(err.message, 'error'); return null; }
+  setBusy(false);
+  if (ok) { lock.failed = 0; return true; }
+  lock.failed++; lock.pad.clear();
+  if (lock.failed >= MAX_ATTEMPTS) {
+    lock.failed = 0; lock.lockedUntil = Date.now() + LOCKOUT_MS;
+    setLockStatus('Too many incorrect attempts. Please wait 30 seconds.', 'error');
+  } else {
+    setLockStatus(`That sequence doesn’t match. Please try again (${MAX_ATTEMPTS - lock.failed} tries left before a short wait).`, 'error');
+  }
+  return false;
+}
+
+async function onPrimary() {
+  const { stage, mode } = lock;
+  if (stage === 'enter') { if (await checkEntered()) enterApp('gallery'); return; }
+  if (stage === 'verify') { if (await checkEntered()) { lock.stage = 'create'; renderLockStage(); } return; }
+  if (stage === 'create') {
+    lock.first = lock.pad.get(); lock.stage = 'confirm'; renderLockStage(); return;
+  }
+  if (stage === 'confirm') {
+    const again = lock.pad.get();
+    if (again.join(',') !== lock.first.join(',')) {
+      lock.first = null; lock.stage = 'create'; renderLockStage();
+      setLockStatus('The two sequences did not match. Please start again.', 'error'); return;
+    }
+    setBusy(true);
+    try {
+      await saveCredential(again);
+      if (mode === 'setup') { prefs.lockStyle = lock.style; prefs.custom = lock.custom; savePrefs(); }
+      toast('Lock sequence saved.', 'success');
+      setBusy(false);
+      enterApp(mode === 'change' ? 'settings' : 'gallery');
+    } catch (err) {
+      setBusy(false); setLockStatus('Could not save the sequence: ' + err.message, 'error');
+    }
+  }
+}
+
+/* ==========================================================================
+   9. Entering / leaving the app
+   ========================================================================== */
+async function enterApp(tab = 'gallery') {
+  $('#lockView').classList.add('hidden');
+  $('#shell').classList.remove('hidden');
+  showTab(tab);
+  resetIdle();
+  if (!state.loaded) {
+    state.loaded = true;
+    await refreshItems();
+    migrateLegacyMedia();
+    if (state.legacyNotice) {
+      state.legacyNotice = false;
+      toast('Your old lock sequence was carried over. The original app shipped with a shared default, so please choose a new one in Settings.', 'warn', 9000);
+    }
+  } else {
+    await refreshItems();
+  }
+}
+function lockApp(message) {
+  revokeAllUrls();
+  if (state.observer) state.observer.disconnect();
+  $('#gallery').replaceChildren();
+  ['viewerDialog', 'renameDialog', 'confirmDialog'].forEach(id => { const d = $('#' + id); if (d.open) d.close(); });
+  state.selectMode = false; state.selected.clear(); state.loaded = false;
+  lock.failed = 0;
+  showLockView('unlock', message);
+}
+
+function resetIdle() {
+  clearTimeout(state.idleTimer);
+  const minutes = prefs.autoLockMinutes;
+  if (!minutes || $('#shell').classList.contains('hidden')) return;
+  state.idleTimer = setTimeout(function tick() {
+    const playing = [...document.querySelectorAll('video')].some(v => !v.paused && !v.ended);
+    if (playing) { state.idleTimer = setTimeout(tick, 30000); return; }
+    lockApp('Locked after inactivity.');
+  }, minutes * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev => document.addEventListener(ev, resetIdle, { passive: true }));
+
+function showTab(tab) {
+  state.tab = tab;
+  $('#galleryPanel').classList.toggle('hidden', tab !== 'gallery');
+  $('#settingsPanel').classList.toggle('hidden', tab !== 'settings');
+  document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  if (tab === 'settings') renderSettings();
+  window.scrollTo(0, 0);
+}
+
+/* ==========================================================================
+   10. Dialog helpers
+   ========================================================================== */
+function confirmAction({ title, message, confirmLabel = 'Confirm', danger = false, requireText = null }) {
+  return new Promise(resolve => {
+    const dlg = $('#confirmDialog'), ok = $('#confirmOk'), cancel = $('#confirmCancel'), input = $('#confirmInput');
+    $('#confirmTitle').textContent = title; $('#confirmMsg').textContent = message;
+    ok.textContent = confirmLabel; ok.className = 'btn ' + (danger ? 'danger' : 'primary');
+    $('#confirmField').classList.toggle('hidden', !requireText);
+    if (requireText) $('#confirmHint').textContent = `Type ${requireText} to continue`;
+    input.value = ''; ok.disabled = !!requireText;
+    let done = false;
+    const finish = value => {
+      if (done) return; done = true;
+      ok.removeEventListener('click', onOk); cancel.removeEventListener('click', onCancel);
+      input.removeEventListener('input', onInput); dlg.removeEventListener('close', onCancel);
+      if (dlg.open) dlg.close();
+      resolve(value);
+    };
+    const onOk = () => finish(true), onCancel = () => finish(false);
+    const onInput = () => { ok.disabled = input.value.trim() !== requireText; };
+    ok.addEventListener('click', onOk); cancel.addEventListener('click', onCancel);
+    input.addEventListener('input', onInput); dlg.addEventListener('close', onCancel);
+    dlg.showModal();
+  });
+}
+
+function promptName(current) {
+  return new Promise(resolve => {
+    const dlg = $('#renameDialog'), input = $('#renameInput'), ok = $('#renameOk'), cancel = $('#renameCancel'), error = $('#renameError');
+    input.value = current; error.textContent = '';
+    let done = false;
+    const finish = value => {
+      if (done) return; done = true;
+      ok.removeEventListener('click', onOk); cancel.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey); dlg.removeEventListener('close', onCancel);
+      if (dlg.open) dlg.close();
+      resolve(value);
+    };
+    const onOk = () => {
+      const name = input.value.trim();
+      if (!name) { error.textContent = 'Please enter a file name.'; return; }
+      finish(name);
+    };
+    const onCancel = () => finish(null);
+    const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); onOk(); } };
+    ok.addEventListener('click', onOk); cancel.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey); dlg.addEventListener('close', onCancel);
+    dlg.showModal(); input.select();
+  });
+}
+
+/* ==========================================================================
+   11. Media helpers: type detection, probing, error messages
+   ========================================================================== */
+function detectKind(file) {
+  const type = (file.type || '').toLowerCase(), ext = extOf(file.name);
+  if (type.startsWith('video/') || ['mp4', 'm4v', 'mov', 'webm', 'mkv'].includes(ext)) return 'video';
+  if (type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp'].includes(ext)) return 'image';
+  return null;
+}
+function probeImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({}); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('This image looks corrupted or is a format this browser cannot display (for example HEIC).')); };
+    img.src = url;
+  });
+}
+function probeVideo(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file), video = document.createElement('video');
+    video.preload = 'metadata'; video.muted = true;
+    const finish = result => { clearTimeout(timer); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url); resolve(result); };
+    const timer = setTimeout(() => finish({ playable: null }), 10000);
+    video.onloadedmetadata = () => finish({ playable: true, duration: Number.isFinite(video.duration) ? video.duration : null });
+    video.onerror = () => finish({ playable: false });
+    video.src = url;
+  });
+}
+function friendlyError(err, file) {
+  const name = err && err.name;
+  if (name === 'QuotaExceededError') return `Not enough browser storage for ${formatBytes(file.size)}. Delete some files or add a smaller one.`;
+  if (name === 'InvalidStateError' || name === 'SecurityError') return 'Browser storage is unavailable (private browsing or blocked by settings).';
+  return (err && err.message) || 'Unknown error while saving.';
+}
+
+/* ==========================================================================
+   12. Upload queue (success is reported only after the DB transaction completes)
+   ========================================================================== */
+function enqueueFiles(fileList) {
+  if (!state.dbOk) { toast('Storage is unavailable, so files cannot be saved.', 'error'); return; }
+  const files = [...fileList]; if (!files.length) return;
+  state.queue.push(...files);
+  processQueue();
+}
+async function processQueue() {
+  if (state.uploading) return;
+  state.uploading = true;
+  const panel = $('#uploadPanel'), rows = $('#uploadRows');
+  rows.replaceChildren(); panel.classList.remove('hidden'); $('#uploadSpinner').classList.remove('hidden');
+  $('#uploadTitle').textContent = 'Saving files…';
+  let saved = 0, failed = 0;
+
+  while (state.queue.length) {
+    const file = state.queue.shift();
+    const status = el('span', { class: 'state', text: 'Waiting…' });
+    rows.append(el('div', { class: 'upload-row' }, el('span', { class: 'fname', title: file.name, text: `${file.name} (${formatBytes(file.size)})` }), status));
+    const setStatus = (text, cls = '') => { status.textContent = text; status.className = 'state ' + cls; };
+    try {
+      const kind = detectKind(file);
+      if (!kind) throw new Error('Unsupported file type. Use images (JPG, PNG, GIF, WebP, AVIF, BMP) or videos (MP4, WebM, MOV).');
+      if (file.size === 0) throw new Error('This file is empty.');
+      setStatus('Checking file…');
+      const extra = kind === 'image' ? await probeImage(file) : await probeVideo(file);
+      setStatus('Saving to browser storage…');
+      const meta = await saveMedia(file, kind, extra);    // resolves only after tx.oncomplete
+      state.items.push(meta); saved++;
+      if (kind === 'video' && extra.playable === false) setStatus('Saved, but this browser may not play this video codec. You can still download it.', 'warn');
+      else setStatus('Saved ✓', 'ok');
+    } catch (err) {
+      failed++; setStatus('Not saved: ' + friendlyError(err, file), 'error');
+    }
+  }
+  state.uploading = false;
+  $('#uploadSpinner').classList.add('hidden');
+  $('#uploadTitle').textContent = failed ? `Finished: ${saved} saved, ${failed} not saved` : `All ${saved} file${saved === 1 ? '' : 's'} saved`;
+  if (saved) toast(`${saved} file${saved === 1 ? '' : 's'} saved to this browser.`, 'success');
+  if (failed) toast(`${failed} file${failed === 1 ? '' : 's'} could not be saved. See the details above the gallery.`, 'error', 7000);
+  renderStats(); renderGallery(); updateStorageInfo();
+}
+
+/* ==========================================================================
+   13. Gallery rendering
+   ========================================================================== */
+function trackUrl(blob) { const url = URL.createObjectURL(blob); state.urls.add(url); return url; }
+function revokeAllUrls() { state.urls.forEach(u => URL.revokeObjectURL(u)); state.urls.clear(); }
+
+async function refreshItems() {
+  try { state.items = await listMeta(); state.dbOk = true; $('#dbError').classList.add('hidden'); }
+  catch (err) {
+    state.dbOk = false; state.items = [];
+    const box = $('#dbError'); box.textContent = 'Storage error: ' + err.message; box.classList.remove('hidden');
+  }
+  renderStats(); renderGallery(); updateStorageInfo();
+}
+
+function visibleItems() {
+  const q = state.search.trim().toLowerCase();
+  const list = state.items.filter(i => {
+    if (state.filter === 'image' && i.kind !== 'image') return false;
+    if (state.filter === 'video' && i.kind !== 'video') return false;
+    if (state.filter === 'favorites' && !i.favorite) return false;
+    return !q || i.name.toLowerCase().includes(q);
+  });
+  const sorters = {
+    newest: (a, b) => b.created - a.created,
+    oldest: (a, b) => a.created - b.created,
+    name: (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+    size: (a, b) => b.size - a.size
+  };
+  return list.sort(sorters[state.sort]);
+}
+
+function renderStats() {
+  $('#statTotal').textContent = state.items.length;
+  $('#statPhotos').textContent = state.items.filter(i => i.kind === 'image').length;
+  $('#statVideos').textContent = state.items.filter(i => i.kind === 'video').length;
+  $('#statStorage').textContent = formatBytes(state.items.reduce((sum, i) => sum + i.size, 0));
+}
+
+function renderGallery() {
+  const token = ++state.renderToken;
+  revokeAllUrls();
+  if (state.observer) state.observer.disconnect();
+  const host = $('#gallery');
+  host.className = 'gallery ' + (prefs.view === 'list' ? 'list' : 'grid');
+  host.replaceChildren();
+  $('#viewGrid').setAttribute('aria-pressed', String(prefs.view !== 'list'));
+  $('#viewList').setAttribute('aria-pressed', String(prefs.view === 'list'));
+  updateSelectBar();
+
+  const list = visibleItems();
+  $('#resultLine').textContent = state.items.length ? `Showing ${list.length} of ${state.items.length} file${state.items.length === 1 ? '' : 's'}` : '';
+  if (!list.length) {
+    const msg = state.items.length ? ['No matching files', 'Try a different search or filter.'] : ['Your gallery is ready', 'Add photos or MP4 videos, or drag and drop them onto this page.'];
+    host.append(el('div', { class: 'empty' }, el('h3', { text: msg[0] }), el('p', { text: msg[1] })));
+    return;
+  }
+  state.observer = 'IntersectionObserver' in window
+    ? new IntersectionObserver(entries => entries.forEach(en => {
+        if (en.isIntersecting) { state.observer.unobserve(en.target); loadCardMedia(en.target, token); }
+      }), { rootMargin: '300px' })
+    : null;
+  list.forEach(item => {
+    const card = buildCard(item); host.append(card);
+    const slot = card.querySelector('.thumb-slot');
+    if (state.observer) state.observer.observe(slot); else loadCardMedia(slot, token);
+  });
+}
+
+async function loadCardMedia(slot, token) {
+  const item = state.items.find(i => i.id === slot.dataset.id); if (!item) return;
+  try {
+    const blob = await getBlob(item.id);
+    if (token !== state.renderToken) return;           // gallery re-rendered meanwhile
+    if (!blob) throw new Error('missing');
+    const url = trackUrl(blob);
+    if (item.kind === 'video') {
+      const video = el('video', { controls: true, preload: 'metadata', playsinline: true, 'aria-label': 'Video: ' + item.name });
+      video.addEventListener('error', () => slot.replaceChildren(el('div', { class: 'media-error', text: 'This browser cannot play this video (the codec may be unsupported). You can still download it.' })));
+      video.src = url; slot.replaceChildren(video);
+    } else {
+      const img = el('img', { alt: item.name, decoding: 'async' });
+      img.src = url;
+      slot.replaceChildren(el('button', { class: 'img-btn', type: 'button', 'aria-label': 'Open ' + item.name, onclick: () => openViewer(item) }, img));
+    }
+  } catch (err) {
+    if (token === state.renderToken) slot.replaceChildren(el('div', { class: 'media-error', text: 'Could not load this file.' }));
+  }
+}
+
+function buildCard(item) {
+  const isSelected = state.selected.has(item.id);
+  const slot = el('div', { class: 'thumb-slot', dataset: { id: item.id } }, el('div', { class: 'skeleton', text: 'Loading…' }));
+  const checkbox = state.selectMode ? el('label', { class: 'select-box' }, el('input', {
+    type: 'checkbox', checked: isSelected, 'aria-label': 'Select ' + item.name,
+    onchange: e => { e.target.checked ? state.selected.add(item.id) : state.selected.delete(item.id); card.classList.toggle('is-selected', e.target.checked); updateSelectBar(); }
+  })) : null;
+  const fav = el('button', { class: 'icon-btn' + (item.favorite ? ' on' : ''), type: 'button', 'aria-pressed': String(!!item.favorite),
+    'aria-label': (item.favorite ? 'Remove from favourites: ' : 'Add to favourites: ') + item.name, title: 'Favourite', text: item.favorite ? '★' : '☆',
+    onclick: () => toggleFavorite(item) });
+  const small = (label, handler, cls = '') => el('button', { class: 'btn small ' + cls, type: 'button', text: label, 'aria-label': `${label} ${item.name}`, onclick: handler });
+  const card = el('article', { class: 'media-card' + (isSelected ? ' is-selected' : '') },
+    checkbox, slot,
+    el('div', { class: 'card-body' },
+      el('div', { class: 'meta' },
+        el('span', { class: 'name', title: item.name, text: item.name }),
+        el('span', { class: 'sub', text: `${item.kind === 'video' ? 'Video' : 'Image'} · ${formatBytes(item.size)} · ${formatDate(item.created)}` })),
+      el('div', { class: 'card-actions' }, fav, small('Open', () => openViewer(item)), small('Rename', () => renameItem(item)), small('Download', () => downloadItem(item)), small('Delete', () => deleteItems([item.id]), 'danger'))));
+  return card;
+}
+
+/* ---------- item actions ---------- */
+async function toggleFavorite(item) {
+  try {
+    await updateMeta(item.id, { favorite: !item.favorite });
+    item.favorite = !item.favorite;
+    renderGallery();
+  } catch (err) { toast('Could not update favourite: ' + err.message, 'error'); }
+}
+async function renameItem(item) {
+  const name = await promptName(item.name);
+  if (!name || name === item.name) return;
+  try { await updateMeta(item.id, { name }); item.name = name; renderGallery(); toast('File renamed.', 'success'); }
+  catch (err) { toast('Could not rename: ' + err.message, 'error'); }
+}
+async function downloadItem(item) {
+  try {
+    const blob = await getBlob(item.id); if (!blob) throw new Error('File not found.');
+    const url = URL.createObjectURL(blob);
+    const link = el('a', { href: url, download: item.name });
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  } catch (err) { toast('Could not download: ' + err.message, 'error'); }
+}
+async function deleteItems(ids) {
+  const count = ids.length;
+  const ok = await confirmAction({
+    title: count === 1 ? 'Delete this file?' : `Delete ${count} files?`,
+    message: 'This permanently removes ' + (count === 1 ? 'it' : 'them') + ' from this browser. This cannot be undone.',
+    confirmLabel: 'Delete', danger: true
+  });
+  if (!ok) return;
+  try {
+    await deleteMedia(ids);
+    state.items = state.items.filter(i => !ids.includes(i.id));
+    ids.forEach(id => state.selected.delete(id));
+    renderStats(); renderGallery(); updateStorageInfo();
+    toast(count === 1 ? 'File deleted.' : `${count} files deleted.`, 'success');
+  } catch (err) { toast('Could not delete: ' + err.message, 'error'); }
+}
+
+/* ---------- multi-select ---------- */
+function updateSelectBar() {
+  $('#selectBar').classList.toggle('hidden', !state.selectMode);
+  $('#selectToggle').setAttribute('aria-pressed', String(state.selectMode));
+  $('#selectCount').textContent = `${state.selected.size} selected`;
+  $('#deleteSelected').disabled = state.selected.size === 0;
+}
+
+/* ---------- viewer ---------- */
+let viewerUrl = null;
+async function openViewer(item) {
+  try {
+    const blob = await getBlob(item.id); if (!blob) throw new Error('File not found.');
+    if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+    viewerUrl = URL.createObjectURL(blob);
+    const media = item.kind === 'video'
+      ? el('video', { controls: true, autoplay: false, playsinline: true, 'aria-label': 'Video: ' + item.name })
+      : el('img', { alt: item.name });
+    media.src = viewerUrl;
+    $('#viewerName').textContent = item.name;
+    $('#viewerBody').replaceChildren(media);
+    $('#viewerDialog').showModal();
+  } catch (err) { toast('Could not open file: ' + err.message, 'error'); }
+}
+function closeViewer() {
+  const dlg = $('#viewerDialog'); if (dlg.open) dlg.close();
+}
+$('#viewerDialog').addEventListener('close', () => {
+  const v = $('#viewerBody').querySelector('video'); if (v) v.pause();
+  $('#viewerBody').replaceChildren();
+  if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; }
+});
+$('#viewerClose').addEventListener('click', closeViewer);
+$('#viewerDialog').addEventListener('click', e => { if (e.target === e.currentTarget) closeViewer(); });
+
+/* ==========================================================================
+   14. Storage information
+   ========================================================================== */
+async function updateStorageInfo() {
+  const used = state.items.reduce((sum, i) => sum + i.size, 0);
+  let estimate = null, persisted = null;
+  try { if (navigator.storage && navigator.storage.estimate) estimate = await navigator.storage.estimate(); } catch (e) { /* ignore */ }
+  try { if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch (e) { /* ignore */ }
+
+  const meter = $('#quotaMeter'), low = $('#lowSpace');
+  if (estimate && estimate.quota) {
+    const fraction = (estimate.usage || 0) / estimate.quota;
+    meter.firstElementChild.style.width = Math.min(100, Math.max(1, fraction * 100)) + '%';
+    meter.classList.toggle('high', fraction >= 0.8);
+    $('#statStorageSub').textContent = `of about ${formatBytes(estimate.quota)} available`;
+    if (fraction >= 0.8) { low.textContent = `Browser storage is ${Math.round(fraction * 100)}% full. Delete files you no longer need before adding more.`; low.classList.remove('hidden'); }
+    else low.classList.add('hidden');
+  } else { $('#statStorageSub').textContent = 'Storage used'; low.classList.add('hidden'); }
+
+  $('#setUsed').textContent = `${formatBytes(used)} in ${state.items.length} file${state.items.length === 1 ? '' : 's'}`;
+  $('#setQuota').textContent = estimate && estimate.quota ? `${formatBytes(estimate.usage || 0)} used of about ${formatBytes(estimate.quota)}` : 'Not reported by this browser';
+  $('#setPersist').textContent = persisted === null ? 'Not supported' : persisted ? 'Granted — the browser will not evict your data automatically' : 'Not granted — the browser may clear data if the device runs low on space';
+}
+
+/* ==========================================================================
+   15. Settings
+   ========================================================================== */
+let settingsPicker = null;
+function renderSettings() {
+  settingsPicker = mountStylePicker($('#settingsStyleHost'), { style: prefs.lockStyle, custom: prefs.custom });
+  $('#themeSelect').value = prefs.theme;
+  $('#viewSelect').value = prefs.view;
+  $('#autoLockSelect').value = String(prefs.autoLockMinutes);
+  updateStorageInfo();
+}
+
+/* ==========================================================================
+   16. One-time event wiring (bound once, so there are no duplicate listeners)
+   ========================================================================== */
+function bindEvents() {
+  document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('#lockNow').addEventListener('click', () => lockApp('Workspace locked.'));
+
+  // Upload
+  $('#addBtn').addEventListener('click', () => $('#mediaInput').click());
+  $('#mediaInput').addEventListener('change', e => { enqueueFiles(e.target.files); e.target.value = ''; });
+
+  // Drag & drop
+  let dragDepth = 0;
+  const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const appVisible = () => !$('#shell').classList.contains('hidden');
+  window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); if (appVisible()) { dragDepth++; $('#dropOverlay').classList.remove('hidden'); } });
+  window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('#dropOverlay').classList.add('hidden'); });
+  window.addEventListener('drop', e => {
+    if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; $('#dropOverlay').classList.add('hidden');
+    if (appVisible() && state.tab === 'gallery') enqueueFiles(e.dataTransfer.files);
+  });
+
+  // Toolbar
+  let searchTimer;
+  $('#searchInput').addEventListener('input', e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = e.target.value; renderGallery(); }, 150); });
+  $('#filterSelect').addEventListener('change', e => { state.filter = e.target.value; renderGallery(); });
+  $('#sortSelect').addEventListener('change', e => { state.sort = e.target.value; renderGallery(); });
+  const setView = view => { prefs.view = view; savePrefs(); renderGallery(); };
+  $('#viewGrid').addEventListener('click', () => setView('grid'));
+  $('#viewList').addEventListener('click', () => setView('list'));
+  $('#selectToggle').addEventListener('click', () => { state.selectMode = !state.selectMode; if (!state.selectMode) state.selected.clear(); renderGallery(); });
+  $('#selectDone').addEventListener('click', () => { state.selectMode = false; state.selected.clear(); renderGallery(); });
+  $('#selectAll').addEventListener('click', () => { visibleItems().forEach(i => state.selected.add(i.id)); renderGallery(); });
+  $('#deleteSelected').addEventListener('click', () => deleteItems([...state.selected]));
+
+  // Settings
+  $('#applyStyle').addEventListener('click', () => {
+    const v = settingsPicker.getValue();
+    prefs.lockStyle = v.style; prefs.custom = v.custom;
+    if (savePrefs()) toast(`Lock style set to “${LOCK_STYLES[v.style].label}”. Your sequence is unchanged.`, 'success');
+  });
+  $('#changeSeq').addEventListener('click', () => showLockView('change'));
+  $('#themeSelect').addEventListener('change', e => { prefs.theme = e.target.value; applyTheme(); savePrefs(); });
+  $('#viewSelect').addEventListener('change', e => { prefs.view = e.target.value; savePrefs(); renderGallery(); });
+  $('#autoLockSelect').addEventListener('change', e => { prefs.autoLockMinutes = Number(e.target.value); savePrefs(); resetIdle(); });
+  $('#persistBtn').addEventListener('click', async () => {
+    if (!(navigator.storage && navigator.storage.persist)) { toast('This browser does not support persistent storage requests.', 'warn'); return; }
+    try { const granted = await navigator.storage.persist(); toast(granted ? 'Persistent storage granted.' : 'The browser declined. It may grant it once the site is used more or bookmarked.', granted ? 'success' : 'warn'); }
+    catch (e) { toast('Request failed: ' + e.message, 'error'); }
+    updateStorageInfo();
+  });
+  $('#resetPrefs').addEventListener('click', async () => {
+    const ok = await confirmAction({ title: 'Reset preferences?', message: 'Theme, lock style, view and auto-lock return to defaults. Your sequence and media are not touched.', confirmLabel: 'Reset' });
+    if (!ok) return;
+    prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS)); savePrefs(); applyTheme(); renderSettings(); renderGallery();
+    toast('Preferences reset.', 'success');
+  });
+  $('#eraseAll').addEventListener('click', async () => {
+    const ok = await confirmAction({ title: 'Erase everything?', message: 'This deletes ALL media, your lock sequence and your preferences from this browser. It cannot be undone.', confirmLabel: 'Erase all', danger: true, requireText: 'ERASE' });
+    if (!ok) return;
+    try {
+      await clearAllMedia();
+      [PREFS_KEY, CRED_KEY, LEGACY_PATTERN_KEY, LEGACY_MEDIA_KEY].forEach(k => localStorage.removeItem(k));
+      prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS)); applyTheme();
+      state.items = []; state.loaded = false; revokeAllUrls();
+      showLockView('setup'); toast('All data erased.', 'success');
+    } catch (err) { toast('Could not erase everything: ' + err.message, 'error'); }
+  });
+}
+
+/* ==========================================================================
+   17. Carry over media from the original localStorage version
+   ========================================================================== */
+async function migrateLegacyMedia() {
+  let raw; try { raw = localStorage.getItem(LEGACY_MEDIA_KEY); } catch (e) { return; }
+  if (!raw) return;
+  let items; try { items = JSON.parse(raw); } catch (e) { return; }
+  if (!Array.isArray(items) || !items.length) { localStorage.removeItem(LEGACY_MEDIA_KEY); return; }
+  let moved = 0;
+  for (const old of items) {
+    try {
+      const blob = await (await fetch(old.url)).blob();
+      await saveMedia(new File([blob], old.name || 'Untitled', { type: blob.type }), old.type === 'video' ? 'video' : 'image');
+      moved++;
+    } catch (e) { /* keep going */ }
+  }
+  if (moved === items.length) localStorage.removeItem(LEGACY_MEDIA_KEY);
+  if (moved) { toast(`Moved ${moved} item${moved === 1 ? '' : 's'} from the old storage.`, 'success'); await refreshItems(); }
+}
+
+/* ==========================================================================
+   18. Start-up
+   ========================================================================== */
+async function init() {
+  applyTheme();
+  bindEvents();
+  await migrateLegacyPattern();
+  showLockView(loadCredential() ? 'unlock' : 'setup');
+}
+window.__vault = { state, prefs: () => prefs };   // handy for debugging in the console
+init();
+})();
+</script>
+</body>
+</html>
