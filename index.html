@@ -75,7 +75,7 @@ button,input,select{font:inherit;color:inherit}
    4. Lock pad (shared by all four styles)
    ========================================================================== */
 .pad-wrap{position:relative;width:min(100%,300px);margin:0 auto;--tile-accent:var(--accent)}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);aspect-ratio:1;width:100%}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);aspect-ratio:1;width:100%}
 .pad.is-disabled{opacity:.55}
 .pad[data-style="classic"]{touch-action:none}
 .tile{position:relative;display:grid;place-items:center;margin:6px;padding:0;cursor:pointer;
@@ -116,9 +116,9 @@ button,input,select{font:inherit;color:inherit}
 @keyframes tile-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--tile-accent) 45%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
 
 /* Mini thumbnails in the style picker */
-.pad-wrap.mini{width:104px}
+.pad-wrap.mini{width:104px;pointer-events:none}   /* clicks fall through to the style card label */
 .pad-wrap.mini .tile{font-size:12px;margin:2px;border-radius:5px}
-.pad-wrap.mini .pad[data-style="tictactoe"] .tile{margin:0;font-size:15px}
+.pad-wrap.mini .pad[data-style="tictactoe"] .tile{margin:0;font-size:15px;border-radius:0}
 .pad-wrap.mini .pad[data-style="classic"] .tile::before{width:8px;height:8px;border-width:1.5px}
 .pad-wrap.mini .pad[data-style="classic"] .tile.is-selected::before{box-shadow:0 0 0 3px color-mix(in srgb,var(--tile-accent) 25%,transparent)}
 .pad-wrap.mini .pad[data-style="minimal"] .tile{font-size:10px}
