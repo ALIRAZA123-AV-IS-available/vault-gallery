@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vault Gallery — Pattern Lock Media Gallery</title>
 <meta name="description" content="A private, browser-based media gallery with a selectable pattern lock. Photos and MP4 videos are stored locally with IndexedDB.">
 <style>
@@ -59,10 +59,14 @@ button,input,select{font:inherit;color:inherit}
 /* ==========================================================================
    3. Lock screen
    ========================================================================== */
-.lock-view{min-height:100vh;display:grid;place-items:center;padding:24px 16px;
+.lock-view{min-height:100vh;display:flex;
+  padding:max(16px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
   background:radial-gradient(1000px 500px at 50% -10%,rgba(79,140,255,.16),transparent 60%),var(--bg)}
-.lock-card{width:min(100%,560px);background:var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);padding:28px 26px;display:flex;flex-direction:column;gap:14px}
-.lock-card h1{font-size:22px}
+.lock-card{margin:auto;width:min(100%,520px);background:var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+  padding:clamp(18px,2.6vw,28px);display:flex;flex-direction:column;gap:12px;transition:width .2s}
+.lock-card.wide{width:min(100%,980px)}
+.lock-card h1{font-size:clamp(20px,1vw + 15px,26px)}
+.lock-card .pad-wrap{--pad-size:clamp(230px,calc(100vh - 450px),360px)}
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px}
 .brand-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(79,140,255,.16);color:var(--accent);font-size:16px}
 .status{min-height:20px;font-size:13px;color:var(--muted)}
@@ -74,7 +78,7 @@ button,input,select{font:inherit;color:inherit}
 /* ==========================================================================
    4. Lock pad (shared by all four styles)
    ========================================================================== */
-.pad-wrap{position:relative;width:min(100%,300px);margin:0 auto;--tile-accent:var(--accent)}
+.pad-wrap{position:relative;margin:0 auto;--tile-accent:var(--accent)}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);aspect-ratio:1;width:100%}
 .pad.is-disabled{opacity:.55}
 .pad[data-style="classic"]{touch-action:none}
@@ -249,6 +253,109 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+
+/* ==========================================================================
+   v3 additions: responsive pad, picker layout, albums, trash, settings layout, dialogs
+   ========================================================================== */
+/* Pad sizing: driven by --pad-size and container-relative type so it stays usable at any width */
+.pad-wrap{width:var(--pad-size,min(100%,320px));max-width:100%;container-type:inline-size}
+.pad-wrap:not(.mini) .tile{font-size:clamp(20px,9cqw,40px)}
+.pad-wrap:not(.mini) .pad[data-style="tictactoe"] .tile{font-size:clamp(28px,17cqw,60px)}
+.pad-wrap:not(.mini) .pad[data-style="minimal"] .tile{font-size:clamp(16px,8cqw,28px)}
+.pad-wrap:not(.mini) .pad[data-style="classic"] .tile::before{width:clamp(14px,5cqw,20px);height:clamp(14px,5cqw,20px)}
+.pad-wrap.mini{width:92px;pointer-events:none}   /* clicks fall through to the style card label */
+.pad-count{font-size:13px}
+
+/* Style picker: side-by-side on wide containers (lock setup is shown in a wide card) */
+.pk-host{container-type:inline-size}
+.picker{display:grid;gap:14px}
+.picker .preview-box .pad-wrap{--pad-size:clamp(190px,calc(100vh - 560px),270px)}
+@container (min-width:640px){
+  .picker{grid-template-columns:1.05fr .95fr;align-items:start;gap:20px}
+  .picker .style-cards{grid-template-columns:repeat(2,1fr)}
+  .picker .preview-box{margin-top:0}
+  .style-card{padding:10px 8px}
+}
+
+/* Layout helpers */
+.grow{flex:1}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:700}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap}
+code{background:var(--bg-soft);padding:1px 5px;border-radius:5px;font-size:12px}
+details summary{cursor:pointer;font-weight:600}
+
+/* Albums */
+.album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.album-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
+.cover-btn{border:0;padding:0;background:none;cursor:pointer;display:block;width:100%}
+.cover-slot{background:#060c17;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}
+.cover-slot img,.cover-slot video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.album-banner{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;margin-bottom:12px}
+.albums-line{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick-list{display:flex;flex-direction:column;gap:6px;max-height:min(38vh,300px);overflow:auto;margin:10px 0}
+.pick-item{display:flex;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--panel-2)}
+.pick-item input{width:18px;height:18px;accent-color:var(--accent)}
+.pick-item:has(input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
+
+/* Settings: section navigation + content */
+.settings-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:22px;align-items:start}
+.snav{position:sticky;top:78px;display:flex;flex-direction:column;gap:4px}
+.snav-btn{text-align:left;border:0;background:transparent;color:var(--muted);padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+.snav-btn[aria-current="true"]{background:var(--panel);color:var(--text);box-shadow:0 0 0 1px var(--border) inset}
+.settings-section{display:grid;gap:16px}
+.settings-grid{display:block}
+@media (max-width:760px){
+  .settings-layout{grid-template-columns:1fr;gap:12px}
+  .snav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .snav-btn{white-space:nowrap;flex-shrink:0}
+}
+
+/* Dialogs */
+dialog{width:min(94vw,480px);max-height:92vh;overflow:auto}
+dialog.wide{width:min(94vw,660px)}
+dialog.viewer{width:min(96vw,1100px)}
+progress{width:100%;height:10px;accent-color:var(--accent)}
+.policy{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin:10px 0;display:grid;gap:6px;font-size:13px}
+.policy legend{padding:0 6px;color:var(--muted);font-size:12px}
+.warn-list{margin:10px 0;color:var(--warn)}
+.warnbox{margin:8px 0}
+.report-list{max-height:220px;overflow:auto;font-size:12px;padding-left:18px;margin:8px 0}
+#reportBody p{margin:0 0 8px;font-size:13px}
+.toast{display:flex;gap:10px;align-items:center;justify-content:space-between}
+
+/* Touch-friendly sizing and small screens */
+@media (pointer:coarse){
+  .btn{min-height:44px}.btn.small{min-height:40px}.icon-btn{width:42px;height:42px}.nav-btn{min-height:44px}.snav-btn{min-height:44px}
+  .search,.field select,.field input{min-height:44px}
+}
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap;row-gap:8px}
+  .topbar .brand{flex:1}
+  .topbar nav{order:3;flex:1 1 100%;margin-left:0;overflow-x:auto}
+  .nav-btn{white-space:nowrap;flex:1}
+}
+@media (max-width:520px){
+  main{padding-top:16px}
+  .gallery.grid,.album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .card-actions .btn.small{flex:1 1 auto}
+  .toolbar .search{flex:1 1 100%}
+  .toolbar .seg{flex:1 1 40%}
+  .toolbar .seg button{flex:1}
+  .toolbar #selectToggle{flex:1 1 40%}
+}
+.topbar{padding-top:calc(12px + env(safe-area-inset-top));padding-left:max(clamp(14px,3vw,28px),env(safe-area-inset-left));padding-right:max(clamp(14px,3vw,28px),env(safe-area-inset-right))}
+main{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+@media (min-height:1000px){.lock-card .pad-wrap{--pad-size:clamp(230px,38vh,380px)}}
+/* Long upload lists scroll inside the panel instead of pushing the gallery off-screen */
+#uploadRows{max-height:min(30vh,220px);overflow:auto}
+/* Contrast: white text on the accent needs a slightly deeper blue to reach WCAG AA (4.5:1) */
+:root{--accent-btn:#2f6fe8}
+:root[data-theme="light"]{--accent-btn:var(--accent)}
+.btn.primary,.seg button[aria-pressed="true"],.badge,.skip-link,.pad[data-style="minimal"] .tile.is-selected::after{background:var(--accent-btn)}
+.btn.primary{border-color:var(--accent-btn)}
 </style>
 </head>
 <body>
@@ -256,14 +363,15 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
 
 <!-- ======================= LOCK SCREEN ======================= -->
 <section id="lockView" class="lock-view hidden" aria-labelledby="lockTitle">
-  <div class="lock-card">
+  <div class="lock-card" id="lockCard">
     <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span>Vault Gallery</span></div>
     <div>
       <h1 id="lockTitle">Loading…</h1>
       <p id="lockSub" class="muted"></p>
     </div>
-    <div id="lockBody"></div>
+    <div id="lockBody" class="pk-host"></div>
     <p id="lockStatus" class="status" role="status" aria-live="polite"></p>
+    <p id="lockHint" class="fineprint hidden"></p>
     <p class="fineprint">Your media stays in this browser on this device. The lock is a privacy screen to keep casual viewers out — it is not strong security.</p>
   </div>
 </section>
@@ -274,9 +382,11 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
     <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span>Vault Gallery</span></div>
     <nav aria-label="Main">
       <button class="nav-btn" type="button" data-tab="gallery" aria-current="page">Gallery</button>
+      <button class="nav-btn" type="button" data-tab="albums">Albums</button>
+      <button class="nav-btn" type="button" data-tab="trash">Trash<span id="trashBadge" class="badge hidden" aria-label="items in Trash"></span></button>
       <button class="nav-btn" type="button" data-tab="settings">Settings</button>
     </nav>
-    <button id="lockNow" class="btn" type="button">Lock workspace</button>
+    <button id="lockNow" class="btn" type="button">Lock</button>
   </header>
 
   <main id="mainContent" tabindex="-1">
@@ -308,10 +418,19 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
         <div id="uploadRows"></div>
       </div>
 
+      <div id="albumBanner" class="album-banner hidden">
+        <strong id="albumBannerText"></strong>
+        <span class="grow"></span>
+        <button id="albumBack" class="btn small" type="button">← All albums</button>
+        <button id="albumRename" class="btn small" type="button">Rename album</button>
+        <button id="albumDelete" class="btn small danger" type="button">Delete album…</button>
+      </div>
+
       <div class="toolbar">
         <input id="searchInput" class="search" type="search" placeholder="Search by file name" aria-label="Search by file name">
+        <select id="albumFilter" class="search" aria-label="Album"></select>
         <select id="filterSelect" class="search" aria-label="Filter">
-          <option value="all">All files</option><option value="image">Images</option><option value="video">Videos</option><option value="favorites">Favourites</option>
+          <option value="all">All types</option><option value="image">Images</option><option value="video">Videos</option><option value="favorites">Favourites</option>
         </select>
         <select id="sortSelect" class="search" aria-label="Sort by">
           <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">File name (A–Z)</option><option value="size">Size (largest)</option>
@@ -326,7 +445,9 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
       <div id="selectBar" class="select-bar hidden">
         <span class="grow" id="selectCount">0 selected</span>
         <button class="btn small" type="button" id="selectAll">Select all shown</button>
-        <button class="btn small danger" type="button" id="deleteSelected">Delete selected</button>
+        <button class="btn small" type="button" id="bulkAlbum">Add to album…</button>
+        <button class="btn small hidden" type="button" id="bulkRemoveAlbum">Remove from this album</button>
+        <button class="btn small danger" type="button" id="deleteSelected">Move to Trash</button>
         <button class="btn small" type="button" id="selectDone">Done</button>
       </div>
 
@@ -334,64 +455,142 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
       <div id="gallery" class="gallery grid"></div>
     </section>
 
+    <!-- ---------- Albums ---------- -->
+    <section id="albumsPanel" class="hidden" aria-labelledby="albumsTitle">
+      <div class="page-head">
+        <div>
+          <h2 id="albumsTitle">Albums</h2>
+          <p class="muted">Group files into albums. A file can be in several albums, and albums only point to your files, so nothing is duplicated.</p>
+        </div>
+        <button id="newAlbumBtn" class="btn primary" type="button">＋ New album</button>
+      </div>
+      <div id="albumGrid" class="album-grid"></div>
+    </section>
+
+    <!-- ---------- Trash ---------- -->
+    <section id="trashPanel" class="hidden" aria-labelledby="trashTitle">
+      <div class="page-head">
+        <div>
+          <h2 id="trashTitle">Trash</h2>
+          <p class="muted" id="trashInfo"></p>
+        </div>
+        <div class="head-actions">
+          <button id="trashSelectAll" class="btn" type="button">Select all</button>
+          <button id="emptyTrash" class="btn danger" type="button">Empty Trash…</button>
+        </div>
+      </div>
+      <div id="trashBar" class="select-bar hidden">
+        <span class="grow" id="trashCount">0 selected</span>
+        <button class="btn small primary" type="button" id="trashRestoreSel">Restore selected</button>
+        <button class="btn small danger" type="button" id="trashDeleteSel">Delete permanently…</button>
+        <button class="btn small" type="button" id="trashClearSel">Clear selection</button>
+      </div>
+      <div id="trashGrid" class="gallery grid"></div>
+    </section>
+
     <!-- ---------- Settings ---------- -->
     <section id="settingsPanel" class="hidden" aria-labelledby="settingsTitle">
-      <div class="page-head"><div><h2 id="settingsTitle">Settings</h2><p class="muted">Personalise the lock, appearance and storage.</p></div></div>
-      <div class="settings-grid">
-        <div class="card">
-          <h3>Lock style</h3>
-          <p class="muted">Choose how the lock looks. Changing the style never changes your saved sequence or your media.</p>
-          <div id="settingsStyleHost"></div>
-          <div class="actions" style="justify-content:flex-start"><button id="applyStyle" class="btn primary" type="button">Apply style</button></div>
-        </div>
+      <div class="page-head"><div><h2 id="settingsTitle">Settings</h2><p class="muted">Personalise the lock, appearance, storage and backups.</p></div></div>
+      <div class="settings-layout">
+        <nav class="snav" aria-label="Settings sections">
+          <button class="snav-btn" type="button" data-section="lock" aria-current="true">Lock</button>
+          <button class="snav-btn" type="button" data-section="appearance" aria-current="false">Appearance</button>
+          <button class="snav-btn" type="button" data-section="library" aria-current="false">Library &amp; backup</button>
+          <button class="snav-btn" type="button" data-section="security" aria-current="false">Security</button>
+          <button class="snav-btn" type="button" data-section="reset" aria-current="false">Reset</button>
+        </nav>
 
-        <div class="card">
-          <h3>Lock sequence</h3>
-          <p class="muted">Your sequence is stored as a salted hash, never as plain text. You will be asked for the current sequence before choosing a new one.</p>
-          <button id="changeSeq" class="btn" type="button">Change sequence</button>
-        </div>
-
-        <div class="card">
-          <h3>Appearance &amp; behaviour</h3>
-          <div class="row">
-            <label class="field">Theme
-              <select id="themeSelect"><option value="dark">Dark navy</option><option value="light">Light</option></select>
-            </label>
-            <label class="field">Default gallery view
-              <select id="viewSelect"><option value="grid">Grid</option><option value="list">List</option></select>
-            </label>
-            <label class="field">Auto-lock after inactivity
-              <select id="autoLockSelect"><option value="0">Off</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option></select>
-            </label>
+        <div class="settings-grid">
+          <div class="settings-section" data-section="lock">
+            <div class="card">
+              <h3>Lock style</h3>
+              <p class="muted">Choose how the lock looks. Changing the style never changes your saved sequence, albums or media.</p>
+              <div id="settingsStyleHost" class="pk-host"></div>
+              <div class="actions" style="justify-content:flex-start"><button id="applyStyle" class="btn primary" type="button">Apply style</button></div>
+            </div>
+            <div class="card">
+              <h3>Lock sequence</h3>
+              <p class="muted">Your sequence is stored as a salted hash, never as plain text. You will be asked for the current sequence before choosing a new one.</p>
+              <button id="changeSeq" class="btn" type="button">Change sequence</button>
+            </div>
           </div>
-        </div>
 
-        <div class="card">
-          <h3>Storage</h3>
-          <dl class="kv">
-            <dt>Your media</dt><dd id="setUsed">—</dd>
-            <dt>Browser quota (estimate)</dt><dd id="setQuota">—</dd>
-            <dt>Persistent storage</dt><dd id="setPersist">—</dd>
-          </dl>
-          <p class="muted" style="margin-bottom:10px">Files live in this browser's IndexedDB on this device only. Clearing site data, using a different browser or profile, or some private-browsing modes will remove or hide them. Keep your originals elsewhere.</p>
-          <button id="persistBtn" class="btn" type="button">Request persistent storage</button>
-        </div>
+          <div class="settings-section hidden" data-section="appearance">
+            <div class="card">
+              <h3>Appearance &amp; behaviour</h3>
+              <div class="row">
+                <label class="field">Theme
+                  <select id="themeSelect"><option value="dark">Dark navy</option><option value="light">Light</option></select>
+                </label>
+                <label class="field">Default gallery view
+                  <select id="viewSelect"><option value="grid">Grid</option><option value="list">List</option></select>
+                </label>
+                <label class="field">Auto-lock after inactivity
+                  <select id="autoLockSelect"><option value="0">Off</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option></select>
+                </label>
+              </div>
+            </div>
+          </div>
 
-        <div class="card">
-          <h3>Security &amp; privacy</h3>
-          <ul class="notice-list">
-            <li>This is a front-end privacy lock. It is <strong>not</strong> real authentication: anyone who can use this browser profile or open its developer tools can reach the stored files.</li>
-            <li>Media is <strong>not encrypted</strong>. A 4–9 tile sequence has too few possible combinations to protect an encryption key, so claiming encryption would be misleading.</li>
-            <li>Nothing is uploaded anywhere. Cross-device access or real accounts would need a backend with authentication, authorization and server-side storage.</li>
-          </ul>
-        </div>
+          <div class="settings-section hidden" data-section="library">
+            <div class="card">
+              <h3>Storage</h3>
+              <dl class="kv">
+                <dt>Your media</dt><dd id="setUsed">—</dd>
+                <dt>Browser quota (estimate)</dt><dd id="setQuota">—</dd>
+                <dt>Persistent storage</dt><dd id="setPersist">—</dd>
+              </dl>
+              <p class="muted" style="margin-bottom:10px">Files live in this browser's IndexedDB on this device only. Clearing site data, using a different browser or profile, or some private-browsing modes will remove or hide them. Create a backup to keep a copy.</p>
+              <button id="persistBtn" class="btn" type="button">Request persistent storage</button>
+            </div>
+            <div class="card">
+              <h3>Trash</h3>
+              <p class="muted">Deleted files go to Trash first. You can optionally be offered permanent deletion of old Trash items. Nothing is ever deleted without asking you.</p>
+              <label class="field" style="max-width:320px">Offer to delete Trash items older than
+                <select id="retentionSelect"><option value="0">Never (keep until I delete them)</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select>
+              </label>
+            </div>
+            <div class="card">
+              <h3>Backup &amp; restore</h3>
+              <p class="muted">Export your whole library (original files, albums, favourites, Trash and preferences) as ZIP files that you keep yourself. Your lock sequence is not included: after restoring on a clean browser, set a new sequence first, then restore here.</p>
+              <div class="row">
+                <label class="check"><input type="checkbox" id="bkTrash" checked> Include Trash</label>
+                <label class="check"><input type="checkbox" id="bkPrefs" checked> Include preferences</label>
+                <label class="field">Split into parts of
+                  <select id="bkPart"><option value="524288000">500 MB</option><option value="1073741824" selected>1 GB</option><option value="2147483648">2 GB</option></select>
+                </label>
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button id="backupBtn" class="btn primary" type="button">Create backup</button>
+                <button id="restoreBtn" class="btn" type="button">Restore from backup…</button>
+                <input id="restoreInput" class="sr-only" type="file" accept=".zip,application/zip" multiple tabindex="-1" aria-label="Choose backup ZIP files">
+              </div>
+              <details style="margin-top:12px"><summary>About the backup format</summary>
+                <p class="muted" style="margin-top:8px">Each backup part is a normal ZIP file containing <code>manifest.json</code> (version, albums, preferences, one record per file with checksums) and the original files under <code>media/</code>. Large libraries are split into parts; select all parts when restoring. Restoring never overwrites existing files: duplicates are skipped or kept as extra copies, as you choose.</p>
+              </details>
+            </div>
+          </div>
 
-        <div class="card">
-          <h3>Reset</h3>
-          <p class="muted">Resetting preferences restores theme, lock style, view and auto-lock to defaults. It does <strong>not</strong> touch your sequence or media.</p>
-          <div class="row">
-            <button id="resetPrefs" class="btn" type="button">Reset preferences</button>
-            <button id="eraseAll" class="btn danger" type="button">Erase all data…</button>
+          <div class="settings-section hidden" data-section="security">
+            <div class="card">
+              <h3>Security &amp; privacy</h3>
+              <ul class="notice-list">
+                <li>This is a front-end privacy lock. It is <strong>not</strong> real authentication: anyone who can use this browser profile or open its developer tools can reach the stored files.</li>
+                <li>Media is <strong>not encrypted</strong>. A 4–9 tile sequence has too few possible combinations to protect an encryption key, so claiming encryption would be misleading. Backup ZIP files are also <strong>not encrypted</strong>: store them somewhere private.</li>
+                <li>Nothing is uploaded anywhere. Cross-device access or real accounts would need a backend with authentication, authorization and server-side storage.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="settings-section hidden" data-section="reset">
+            <div class="card">
+              <h3>Reset</h3>
+              <p class="muted">Resetting preferences restores theme, lock style, view, auto-lock and Trash period to defaults. It does <strong>not</strong> touch your sequence, albums or media.</p>
+              <div class="row">
+                <button id="resetPrefs" class="btn" type="button">Reset preferences</button>
+                <button id="eraseAll" class="btn danger" type="button">Erase all data…</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -412,9 +611,40 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
 
 <dialog id="renameDialog" aria-labelledby="renameTitle">
   <h3 id="renameTitle">Rename file</h3>
-  <label class="field">File name<input id="renameInput" type="text" maxlength="150" autocomplete="off"></label>
+  <label class="field"><span id="renameLabel">File name</span><input id="renameInput" type="text" maxlength="150" autocomplete="off"></label>
   <p id="renameError" class="status error" role="alert"></p>
   <div class="dlg-actions"><button id="renameCancel" class="btn" type="button">Cancel</button><button id="renameOk" class="btn primary" type="button">Save</button></div>
+</dialog>
+
+<dialog id="albumPickDialog" aria-labelledby="albumPickTitle">
+  <h3 id="albumPickTitle"></h3>
+  <p id="albumPickHelp" class="muted"></p>
+  <div id="albumPickList" class="pick-list"></div>
+  <div class="row" style="align-items:stretch">
+    <input id="albumPickNew" class="search" type="text" maxlength="60" placeholder="New album name" aria-label="New album name" autocomplete="off" style="flex:1">
+    <button id="albumPickCreate" class="btn" type="button">Create</button>
+  </div>
+  <p id="albumPickError" class="status error" role="alert"></p>
+  <div class="dlg-actions"><button id="albumPickCancel" class="btn" type="button">Cancel</button><button id="albumPickOk" class="btn primary" type="button">Save</button></div>
+</dialog>
+
+<dialog id="importDialog" class="wide" aria-labelledby="importTitle">
+  <h3 id="importTitle">Restore from backup</h3>
+  <div id="importBody"></div>
+  <div class="dlg-actions"><button id="importCancel" class="btn" type="button">Cancel</button><button id="importOk" class="btn primary" type="button">Restore</button></div>
+</dialog>
+
+<dialog id="progressDialog" aria-labelledby="progTitle">
+  <h3 id="progTitle"></h3>
+  <p id="progText" class="muted" aria-live="polite"></p>
+  <progress id="progBar" max="100" aria-label="Progress"></progress>
+  <div class="dlg-actions"><button id="progCancel" class="btn" type="button">Cancel</button></div>
+</dialog>
+
+<dialog id="reportDialog" class="wide" aria-labelledby="reportTitle">
+  <h3 id="reportTitle"></h3>
+  <div id="reportBody"></div>
+  <div class="dlg-actions"><button id="reportOk" class="btn primary" type="button">Close</button></div>
 </dialog>
 
 <dialog id="viewerDialog" class="viewer" aria-label="Media viewer">
@@ -425,6 +655,7 @@ dialog.viewer{width:min(96vw,1100px);max-height:94vh;padding:12px}
 <script>
 (() => {
 'use strict';
+
 
 /* ==========================================================================
    1. Constants & small helpers
@@ -437,7 +668,7 @@ const MIN_TILES = 4, MAX_TILES = 9;
 const MAX_ATTEMPTS = 5, LOCKOUT_MS = 30000;
 
 const DEFAULT_PREFS = {
-  theme: 'dark', lockStyle: 'tictactoe', view: 'grid', autoLockMinutes: 5,
+  theme: 'dark', lockStyle: 'tictactoe', view: 'grid', autoLockMinutes: 5, trashRetentionDays: 0,
   custom: { accent: '#4f8cff', symbols: 'xo', shape: 'rounded', animation: 'pop' }
 };
 const LOCK_STYLES = {
@@ -483,11 +714,14 @@ const formatDate = ms => new Date(ms).toLocaleDateString(undefined, { year: 'num
 const uid = () => Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 10);
 const extOf = name => (name.split('.').pop() || '').toLowerCase();
 
-function toast(message, type = 'info', ms = 4500) {
-  const node = el('div', { class: 'toast ' + type, role: type === 'error' ? 'alert' : 'status', text: message });
+/** Toast with an optional action button, e.g. Undo. */
+function toast(message, type = 'info', ms = 4500, action = null) {
+  const node = el('div', { class: 'toast ' + type, role: type === 'error' ? 'alert' : 'status' }, el('span', { text: message }),
+    action ? el('button', { class: 'btn small', type: 'button', text: action.label, onclick: () => { node.remove(); action.onClick(); } }) : null);
   $('#toasts').append(node);
   setTimeout(() => node.remove(), ms);
 }
+
 
 /* ==========================================================================
    2. Preferences (small data only -> localStorage)
@@ -510,6 +744,7 @@ function savePrefs() {
   catch (e) { toast('Could not save preferences (browser storage is blocked).', 'error'); return false; }
 }
 function applyTheme() { document.documentElement.dataset.theme = prefs.theme === 'light' ? 'light' : 'dark'; }
+
 
 /* ==========================================================================
    3. Lock sequence storage (salted PBKDF2 hash, never plain text)
@@ -583,9 +818,10 @@ async function migrateLegacyPattern() {
 }
 
 /* ==========================================================================
-   4. IndexedDB (metadata and binary Blobs in separate stores)
+   4. IndexedDB v3 — stores: meta (records), files (binary Blobs), albums
+   Upgrades are additive and versioned: existing stores and records are never cleared.
    ========================================================================== */
-const DB_NAME = 'vaultMediaDB', DB_VERSION = 2, META = 'meta', FILES = 'files';
+const DB_NAME = 'vaultMediaDB', DB_VERSION = 3, META = 'meta', FILES = 'files', ALBUMS = 'albums';
 let dbPromise = null;
 
 function openDB() {
@@ -597,7 +833,8 @@ function openDB() {
       const db = req.result, tx = req.transaction;
       if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'id' });
       if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES, { keyPath: 'id' });
-      // v1 (earlier fix) kept {blob,name,type,added} in a single "media" store: move it over.
+      if (!db.objectStoreNames.contains(ALBUMS)) db.createObjectStore(ALBUMS, { keyPath: 'id' });   // new in v3
+      // v1 kept {blob,name,type,added} in one "media" store: move it into meta + files.
       if (ev.oldVersion === 1 && db.objectStoreNames.contains('media')) {
         tx.objectStore('media').openCursor().onsuccess = e => {
           const cur = e.target.result;
@@ -608,6 +845,7 @@ function openDB() {
           cur.continue();
         };
       }
+      // v2 -> v3 needs no record changes: missing albumIds/trashedAt are defaulted by normalizeMeta().
     };
     req.onsuccess = () => { const db = req.result; db.onversionchange = () => db.close(); resolve(db); };
     req.onerror = () => reject(req.error);
@@ -629,30 +867,63 @@ async function runTx(stores, mode, work) {
   });
 }
 
-const listMeta = () => runTx([META], 'readonly', tx => tx.objectStore(META).getAll());
+/** Fills defaults so records written by older versions work unchanged. */
+function normalizeMeta(m) {
+  return {
+    favorite: false, duration: null, ...m,
+    albumIds: Array.isArray(m.albumIds) ? m.albumIds.filter(x => typeof x === 'string') : [],
+    trashedAt: Number.isFinite(m.trashedAt) ? m.trashedAt : null
+  };
+}
+const listMeta = async () => (await runTx([META], 'readonly', tx => tx.objectStore(META).getAll())).map(normalizeMeta);
+const listAlbums = () => runTx([ALBUMS], 'readonly', tx => tx.objectStore(ALBUMS).getAll());
 const getBlob = async id => {
   const rec = await runTx([FILES], 'readonly', tx => tx.objectStore(FILES).get(id));
   return rec ? rec.blob : null;
 };
-async function saveMedia(file, kind, extra = {}) {
+const hasFile = async id => (await runTx([FILES], 'readonly', tx => tx.objectStore(FILES).getKey(id))) !== undefined;
+
+async function saveMedia(file, kind, extra = {}, opts = {}) {
   const id = uid();
   const mime = file.type || EXT_MIME[extOf(file.name)] || (kind === 'video' ? 'video/mp4' : 'image/jpeg');
-  const meta = { id, name: file.name, kind, mime, size: file.size, created: Date.now(), favorite: false, duration: extra.duration || null };
+  const meta = normalizeMeta({ id, name: file.name, kind, mime, size: file.size, created: Date.now(), favorite: false, duration: extra.duration || null, albumIds: opts.albumIds || [] });
   const blob = file.slice(0, file.size, mime);
-  await runTx([META, FILES], 'readwrite', tx => {
+  await runTx([META, FILES], 'readwrite', tx => {      // record and bytes commit together or not at all
     tx.objectStore(FILES).put({ id, blob });
     tx.objectStore(META).put(meta);
   });
   return meta;
 }
-const updateMeta = (id, patch) => runTx([META], 'readwrite', tx => {
-  const store = tx.objectStore(META);
-  store.get(id).onsuccess = e => { if (e.target.result) store.put({ ...e.target.result, ...patch }); };
+/** Used by restore: one self-contained transaction per item keeps the library consistent at every moment. */
+const putImported = (meta, blob) => runTx([META, FILES], 'readwrite', tx => {
+  tx.objectStore(FILES).put({ id: meta.id, blob });
+  tx.objectStore(META).put(meta);
 });
-const deleteMedia = ids => runTx([META, FILES], 'readwrite', tx => {
+/** Applies fn(meta) -> newMeta to each id inside ONE transaction. */
+const patchMeta = (ids, fn) => runTx([META], 'readwrite', tx => {
+  const store = tx.objectStore(META);
+  ids.forEach(id => { store.get(id).onsuccess = e => { if (e.target.result) store.put(fn(normalizeMeta(e.target.result))); }; });
+});
+const updateMeta = (id, patch) => patchMeta([id], m => ({ ...m, ...patch }));
+const deleteMedia = ids => runTx([META, FILES], 'readwrite', tx => {      // permanent
   ids.forEach(id => { tx.objectStore(META).delete(id); tx.objectStore(FILES).delete(id); });
 });
-const clearAllMedia = () => runTx([META, FILES], 'readwrite', tx => { tx.objectStore(META).clear(); tx.objectStore(FILES).clear(); });
+const clearAllMedia = () => runTx([META, FILES, ALBUMS], 'readwrite', tx => {
+  tx.objectStore(META).clear(); tx.objectStore(FILES).clear(); tx.objectStore(ALBUMS).clear();
+});
+const putAlbum = album => runTx([ALBUMS], 'readwrite', tx => { tx.objectStore(ALBUMS).put(album); });
+/** Deleting an album removes it and every reference to it; the media records and Blobs are untouched. */
+const removeAlbum = id => runTx([ALBUMS, META], 'readwrite', tx => {
+  tx.objectStore(ALBUMS).delete(id);
+  tx.objectStore(META).openCursor().onsuccess = e => {
+    const cur = e.target.result; if (!cur) return;
+    const v = cur.value;
+    if (Array.isArray(v.albumIds) && v.albumIds.includes(id)) cur.update({ ...v, albumIds: v.albumIds.filter(a => a !== id) });
+    cur.continue();
+  };
+});
+
+
 
 /* ==========================================================================
    5. Lock pad component (one grid, four visual styles)
@@ -757,6 +1028,7 @@ function createLockPad(host, opts = {}) {
   };
 }
 
+
 /* ==========================================================================
    6. Lock style picker (live preview, no changes until the caller applies)
    ========================================================================== */
@@ -808,21 +1080,32 @@ function mountStylePicker(host, { style, custom }) {
     customPanel.classList.toggle('hidden', current !== 'custom');
     Object.entries(labels).forEach(([k, l]) => l.classList.toggle('is-current', k === current));
   }
-  host.replaceChildren(cards, el('div', { class: 'preview-box' }, el('h3', { text: 'Live preview' }), previewHost, hint, el('div', { class: 'actions' }, resetBtn), customPanel));
+  host.classList.add('pk-host');
+  host.replaceChildren(el('div', { class: 'picker' }, cards, el('div', { class: 'preview-box' }, el('h3', { text: 'Live preview' }), previewHost, hint, el('div', { class: 'actions' }, resetBtn), customPanel)));
   sync();
   return { getValue: () => ({ style: current, custom: { ...settings } }) };
 }
 
 /* ==========================================================================
-   7. App state
+   7. App state and small selectors
    ========================================================================== */
+const DAY_MS = 86400000;
 const state = {
-  items: [], filter: 'all', sort: 'newest', search: '',
-  selectMode: false, selected: new Set(),
+  items: [], albums: [],                         // items include trashed ones; use activeItems()/trashedItems()
+  filter: 'all', sort: 'newest', search: '', albumFilter: 'all',   // albumFilter: 'all' | 'none' | <albumId>
+  selectMode: false, selected: new Set(), trashSelected: new Set(),
   urls: new Set(), renderToken: 0, observer: null,
   uploading: false, queue: [],
-  idleTimer: null, legacyNotice: false, dbOk: true, tab: 'gallery'
+  idleTimer: null, legacyNotice: false, dbOk: true, tab: 'gallery', loaded: false
 };
+const activeItems = () => state.items.filter(i => !i.trashedAt);
+const trashedItems = () => state.items.filter(i => i.trashedAt);
+const albumById = id => state.albums.find(a => a.id === id);
+const itemsInAlbum = id => activeItems().filter(i => i.albumIds.includes(id));
+const sortAlbums = () => state.albums.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
+const currentAlbum = () => albumById(state.albumFilter) || null;
+
+
 
 /* ==========================================================================
    8. Lock screen controller (unlock / first-time setup / change sequence)
@@ -846,6 +1129,9 @@ function actionRow(...buttons) { return el('div', { class: 'actions' }, buttons)
 function renderLockStage() {
   const { mode, stage } = lock;
   const body = $('#lockBody'); body.replaceChildren(); setLockStatus('');
+  $('#lockCard').classList.toggle('wide', stage === 'style');
+  const hint = $('#lockHint'); hint.classList.toggle('hidden', mode !== 'setup');
+  hint.textContent = 'Restoring from a backup? Choose a style and create a new sequence first, then restore under Settings → Library & backup.';
   const title = $('#lockTitle'), sub = $('#lockSub');
 
   if (stage === 'style') {
@@ -942,42 +1228,44 @@ async function onPrimary() {
 }
 
 /* ==========================================================================
-   9. Entering / leaving the app
+   9. Entering / leaving the app, tabs
    ========================================================================== */
+const TABS = ['gallery', 'albums', 'trash', 'settings'];
+
 async function enterApp(tab = 'gallery') {
   $('#lockView').classList.add('hidden');
   $('#shell').classList.remove('hidden');
+  const firstLoad = !state.loaded; state.loaded = true;
   showTab(tab);
   resetIdle();
-  if (!state.loaded) {
-    state.loaded = true;
-    await refreshItems();
+  await refreshItems();
+  if (firstLoad) {
     migrateLegacyMedia();
+    await checkExpiredTrash();
     if (state.legacyNotice) {
       state.legacyNotice = false;
       toast('Your old lock sequence was carried over. The original app shipped with a shared default, so please choose a new one in Settings.', 'warn', 9000);
     }
-  } else {
-    await refreshItems();
   }
 }
 function lockApp(message) {
   revokeAllUrls();
   if (state.observer) state.observer.disconnect();
-  $('#gallery').replaceChildren();
-  ['viewerDialog', 'renameDialog', 'confirmDialog'].forEach(id => { const d = $('#' + id); if (d.open) d.close(); });
-  state.selectMode = false; state.selected.clear(); state.loaded = false;
+  ['#gallery', '#albumGrid', '#trashGrid'].forEach(s => $(s).replaceChildren());
+  ['viewerDialog', 'renameDialog', 'confirmDialog', 'albumPickDialog'].forEach(id => { const d = $('#' + id); if (d.open) d.close(); });
+  state.selectMode = false; state.selected.clear(); state.trashSelected.clear();
+  state.items = []; state.albums = []; state.loaded = false;
   lock.failed = 0;
   showLockView('unlock', message);
 }
-
 function resetIdle() {
   clearTimeout(state.idleTimer);
   const minutes = prefs.autoLockMinutes;
   if (!minutes || $('#shell').classList.contains('hidden')) return;
   state.idleTimer = setTimeout(function tick() {
+    const busy = state.uploading || document.querySelector('dialog[open]#progressDialog');
     const playing = [...document.querySelectorAll('video')].some(v => !v.paused && !v.ended);
-    if (playing) { state.idleTimer = setTimeout(tick, 30000); return; }
+    if (playing || busy) { state.idleTimer = setTimeout(tick, 30000); return; }
     lockApp('Locked after inactivity.');
   }, minutes * 60000);
 }
@@ -985,15 +1273,21 @@ function resetIdle() {
 
 function showTab(tab) {
   state.tab = tab;
-  $('#galleryPanel').classList.toggle('hidden', tab !== 'gallery');
-  $('#settingsPanel').classList.toggle('hidden', tab !== 'settings');
+  TABS.forEach(t => $('#' + t + 'Panel').classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
-  if (tab === 'settings') renderSettings();
+  if (tab === 'settings') renderSettings(); else renderCurrentTab();
+  renderChrome();
   window.scrollTo(0, 0);
 }
+function renderCurrentTab() {
+  if (state.tab === 'gallery') renderGallery();
+  else if (state.tab === 'albums') renderAlbums();
+  else if (state.tab === 'trash') renderTrash();
+}
+
 
 /* ==========================================================================
-   10. Dialog helpers
+   10. Dialog helpers (confirm, text prompt, album picker, progress, report)
    ========================================================================== */
 function confirmAction({ title, message, confirmLabel = 'Confirm', danger = false, requireText = null }) {
   return new Promise(resolve => {
@@ -1019,9 +1313,11 @@ function confirmAction({ title, message, confirmLabel = 'Confirm', danger = fals
   });
 }
 
-function promptName(current) {
+/** Text prompt used for renaming files and naming albums. `validate(name)` returns an error string or null. */
+function promptName(current, { title = 'Rename file', label = 'File name', confirmLabel = 'Save', validate = null } = {}) {
   return new Promise(resolve => {
     const dlg = $('#renameDialog'), input = $('#renameInput'), ok = $('#renameOk'), cancel = $('#renameCancel'), error = $('#renameError');
+    $('#renameTitle').textContent = title; $('#renameLabel').textContent = label; ok.textContent = confirmLabel;
     input.value = current; error.textContent = '';
     let done = false;
     const finish = value => {
@@ -1033,7 +1329,9 @@ function promptName(current) {
     };
     const onOk = () => {
       const name = input.value.trim();
-      if (!name) { error.textContent = 'Please enter a file name.'; return; }
+      if (!name) { error.textContent = 'Please enter a name.'; return; }
+      const problem = validate ? validate(name) : null;
+      if (problem) { error.textContent = problem; return; }
       finish(name);
     };
     const onCancel = () => finish(null);
@@ -1043,6 +1341,90 @@ function promptName(current) {
     dlg.showModal(); input.select();
   });
 }
+
+/** Album checklist. Resolves {add:[ids], remove:[ids]} relative to `initial`, or null when cancelled. */
+function pickAlbums({ title, help, initial = new Set() }) {
+  return new Promise(resolve => {
+    const dlg = $('#albumPickDialog'), list = $('#albumPickList'), ok = $('#albumPickOk'), cancel = $('#albumPickCancel');
+    const input = $('#albumPickNew'), create = $('#albumPickCreate'), error = $('#albumPickError');
+    $('#albumPickTitle').textContent = title; $('#albumPickHelp').textContent = help;
+    error.textContent = ''; input.value = '';
+    const checked = new Set(initial);
+    const renderList = () => {
+      list.replaceChildren();
+      if (!state.albums.length) { list.append(el('p', { class: 'muted', text: 'No albums yet. Create one below.' })); return; }
+      state.albums.forEach(a => {
+        const box = el('input', { type: 'checkbox', id: 'pick-' + a.id, checked: checked.has(a.id) });
+        box.addEventListener('change', () => { box.checked ? checked.add(a.id) : checked.delete(a.id); });
+        list.append(el('label', { class: 'pick-item', for: 'pick-' + a.id }, box, el('span', { class: 'grow', text: a.name }), el('span', { class: 'muted', text: String(itemsInAlbum(a.id).length) })));
+      });
+    };
+    const onCreate = async () => {
+      const name = input.value.trim();
+      const problem = !name ? 'Enter a name for the new album.' : validateAlbumName(name);
+      if (problem) { error.textContent = problem; return; }
+      error.textContent = '';
+      try {
+        const album = { id: uid(), name, created: Date.now(), updated: Date.now() };
+        await putAlbum(album); state.albums.push(album); sortAlbums();
+        checked.add(album.id); input.value = ''; renderList(); renderChrome();
+      } catch (err) { error.textContent = 'Could not create the album: ' + friendlyError(err, null); }
+    };
+    const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); onCreate(); } };
+    let done = false;
+    const finish = value => {
+      if (done) return; done = true;
+      ok.removeEventListener('click', onOk); cancel.removeEventListener('click', onCancel);
+      create.removeEventListener('click', onCreate); input.removeEventListener('keydown', onKey);
+      dlg.removeEventListener('close', onCancel);
+      if (dlg.open) dlg.close();
+      resolve(value);
+    };
+    const onOk = () => finish({ add: [...checked].filter(id => !initial.has(id)), remove: [...initial].filter(id => !checked.has(id)) });
+    const onCancel = () => finish(null);
+    ok.addEventListener('click', onOk); cancel.addEventListener('click', onCancel);
+    create.addEventListener('click', onCreate); input.addEventListener('keydown', onKey); dlg.addEventListener('close', onCancel);
+    renderList(); dlg.showModal();
+  });
+}
+
+/** Modal progress box. fraction === null shows an indeterminate bar. */
+function openProgress(title, { cancellable = true } = {}) {
+  const dlg = $('#progressDialog'), bar = $('#progBar'), cancelBtn = $('#progCancel');
+  const api = { cancelled: false, isCancelled: () => api.cancelled };
+  $('#progTitle').textContent = title; $('#progText').textContent = '';
+  cancelBtn.classList.toggle('hidden', !cancellable); cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel';
+  bar.removeAttribute('value'); bar.max = 100;
+  const onCancel = e => { if (e) e.preventDefault(); if (!cancellable) return; api.cancelled = true; cancelBtn.disabled = true; cancelBtn.textContent = 'Cancelling…'; };
+  cancelBtn.addEventListener('click', onCancel); dlg.addEventListener('cancel', onCancel);
+  dlg.showModal();
+  api.update = (text, fraction) => {
+    $('#progText').textContent = text || '';
+    if (fraction === null || fraction === undefined) bar.removeAttribute('value');
+    else bar.value = Math.max(0, Math.min(100, Math.round(fraction * 100)));
+  };
+  api.close = () => { cancelBtn.removeEventListener('click', onCancel); dlg.removeEventListener('cancel', onCancel); if (dlg.open) dlg.close(); };
+  return api;
+}
+
+/** Result box: summary lines plus an optional collapsible list of details. */
+function showReport(title, summary, details = []) {
+  return new Promise(resolve => {
+    const dlg = $('#reportDialog'), body = $('#reportBody'), ok = $('#reportOk');
+    $('#reportTitle').textContent = title;
+    body.replaceChildren(...summary.map(line => el('p', { text: line })));
+    if (details.length) {
+      const shown = details.slice(0, 200);
+      body.append(el('details', { open: details.length <= 6 }, el('summary', { text: `Details (${details.length})` }),
+        el('ul', { class: 'report-list' }, shown.map(d => el('li', { text: d })), details.length > shown.length ? el('li', { text: `…and ${details.length - shown.length} more` }) : null)));
+    }
+    const finish = () => { ok.removeEventListener('click', finish); dlg.removeEventListener('close', finish); if (dlg.open) dlg.close(); resolve(); };
+    ok.addEventListener('click', finish); dlg.addEventListener('close', finish);
+    dlg.showModal(); ok.focus();
+  });
+}
+
+
 
 /* ==========================================================================
    11. Media helpers: type detection, probing, error messages
@@ -1074,10 +1456,11 @@ function probeVideo(file) {
 }
 function friendlyError(err, file) {
   const name = err && err.name;
-  if (name === 'QuotaExceededError') return `Not enough browser storage for ${formatBytes(file.size)}. Delete some files or add a smaller one.`;
+  if (name === 'QuotaExceededError') return file && file.size ? `Not enough browser storage for ${formatBytes(file.size)}. Delete some files (and empty Trash) or add a smaller one.` : 'Not enough browser storage. Delete some files (and empty Trash) and try again.';
   if (name === 'InvalidStateError' || name === 'SecurityError') return 'Browser storage is unavailable (private browsing or blocked by settings).';
   return (err && err.message) || 'Unknown error while saving.';
 }
+
 
 /* ==========================================================================
    12. Upload queue (success is reported only after the DB transaction completes)
@@ -1108,7 +1491,7 @@ async function processQueue() {
       setStatus('Checking file…');
       const extra = kind === 'image' ? await probeImage(file) : await probeVideo(file);
       setStatus('Saving to browser storage…');
-      const meta = await saveMedia(file, kind, extra);    // resolves only after tx.oncomplete
+      const meta = await saveMedia(file, kind, extra, { albumIds: currentAlbum() ? [currentAlbum().id] : [] });    // resolves only after tx.oncomplete
       state.items.push(meta); saved++;
       if (kind === 'video' && extra.playable === false) setStatus('Saved, but this browser may not play this video codec. You can still download it.', 'warn');
       else setStatus('Saved ✓', 'ok');
@@ -1121,27 +1504,127 @@ async function processQueue() {
   $('#uploadTitle').textContent = failed ? `Finished: ${saved} saved, ${failed} not saved` : `All ${saved} file${saved === 1 ? '' : 's'} saved`;
   if (saved) toast(`${saved} file${saved === 1 ? '' : 's'} saved to this browser.`, 'success');
   if (failed) toast(`${failed} file${failed === 1 ? '' : 's'} could not be saved. See the details above the gallery.`, 'error', 7000);
-  renderStats(); renderGallery(); updateStorageInfo();
+  renderChrome(); renderCurrentTab(); updateStorageInfo();
 }
 
 /* ==========================================================================
-   13. Gallery rendering
+   13. Data loading, chrome (counts, filters) and lazy media loading
    ========================================================================== */
 function trackUrl(blob) { const url = URL.createObjectURL(blob); state.urls.add(url); return url; }
 function revokeAllUrls() { state.urls.forEach(u => URL.revokeObjectURL(u)); state.urls.clear(); }
 
 async function refreshItems() {
-  try { state.items = await listMeta(); state.dbOk = true; $('#dbError').classList.add('hidden'); }
-  catch (err) {
-    state.dbOk = false; state.items = [];
+  try {
+    const [items, albums] = await Promise.all([listMeta(), listAlbums()]);
+    state.items = items; state.albums = albums; sortAlbums();
+    state.dbOk = true; $('#dbError').classList.add('hidden');
+    await pruneDanglingAlbumRefs();
+  } catch (err) {
+    state.dbOk = false; state.items = []; state.albums = [];
     const box = $('#dbError'); box.textContent = 'Storage error: ' + err.message; box.classList.remove('hidden');
   }
-  renderStats(); renderGallery(); updateStorageInfo();
+  if (state.albumFilter !== 'all' && state.albumFilter !== 'none' && !albumById(state.albumFilter)) state.albumFilter = 'all';
+  const live = new Set(state.items.map(i => i.id));
+  [state.selected, state.trashSelected].forEach(set => set.forEach(id => { if (!live.has(id)) set.delete(id); }));
+  renderChrome(); renderCurrentTab(); updateStorageInfo();
+}
+/** Keeps album references consistent: drop ids of albums that no longer exist. */
+async function pruneDanglingAlbumRefs() {
+  try {
+    const valid = new Set(state.albums.map(a => a.id));
+    const bad = state.items.filter(i => i.albumIds.some(a => !valid.has(a)));
+    if (!bad.length) return;
+    await patchMeta(bad.map(i => i.id), m => ({ ...m, albumIds: m.albumIds.filter(a => valid.has(a)) }));
+    bad.forEach(i => { i.albumIds = i.albumIds.filter(a => valid.has(a)); });
+  } catch (e) { /* non-fatal */ }
 }
 
+/** Updates everything that is not the item grid: stats, badges, album filter options, banners, bars. */
+function renderChrome() {
+  const active = activeItems(), trashed = trashedItems();
+  $('#statTotal').textContent = active.length;
+  $('#statPhotos').textContent = active.filter(i => i.kind === 'image').length;
+  $('#statVideos').textContent = active.filter(i => i.kind === 'video').length;
+  $('#statStorage').textContent = formatBytes(state.items.reduce((sum, i) => sum + i.size, 0));
+  const badge = $('#trashBadge'); badge.textContent = trashed.length; badge.classList.toggle('hidden', !trashed.length);
+
+  const sel = $('#albumFilter'); sel.replaceChildren(
+    el('option', { value: 'all', text: 'All media' }), el('option', { value: 'none', text: 'Not in any album' }),
+    ...state.albums.map(a => el('option', { value: a.id, text: `${a.name} (${itemsInAlbum(a.id).length})` })));
+  sel.value = state.albumFilter;
+  $('#filterSelect').value = state.filter; $('#sortSelect').value = state.sort;
+  if ($('#searchInput').value !== state.search) $('#searchInput').value = state.search;
+
+  const album = currentAlbum(), banner = $('#albumBanner');
+  banner.classList.toggle('hidden', !album);
+  if (album) $('#albumBannerText').textContent = `Album: ${album.name} · ${itemsInAlbum(album.id).length} item${itemsInAlbum(album.id).length === 1 ? '' : 's'}`;
+  updateSelectBar(); updateTrashBar();
+}
+
+/** Lazily runs loader(slot, token) as slots scroll into view; protects against stale renders via token. */
+function lazyLoad(slots, token, loader) {
+  if (state.observer) state.observer.disconnect();
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver(entries => entries.forEach(en => {
+      if (en.isIntersecting) { obs.unobserve(en.target); loader(en.target, token); }
+    }), { rootMargin: '300px' });
+    state.observer = obs; slots.forEach(s => obs.observe(s));
+  } else { state.observer = null; slots.forEach(s => loader(s, token)); }
+}
+function startRender() {
+  const token = ++state.renderToken;
+  if (state.observer) state.observer.disconnect();
+  // Detach old media first so nothing is still loading from a Blob URL when it is revoked.
+  document.querySelectorAll('#gallery video, #albumGrid video, #trashGrid video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
+  ['#gallery', '#albumGrid', '#trashGrid'].forEach(s => $(s).replaceChildren());
+  revokeAllUrls();
+  return token;
+}
+
+async function loadCardMedia(slot, token) {
+  const item = state.items.find(i => i.id === slot.dataset.id); if (!item) return;
+  try {
+    const blob = await getBlob(item.id);
+    if (token !== state.renderToken) return;           // view re-rendered meanwhile
+    if (!blob) throw new Error('missing');
+    const url = trackUrl(blob);
+    if (item.kind === 'video') {
+      const video = el('video', { controls: true, preload: 'metadata', playsinline: true, 'aria-label': 'Video: ' + item.name });
+      video.addEventListener('error', () => slot.replaceChildren(el('div', { class: 'media-error', text: 'This browser cannot play this video (the codec may be unsupported). You can still download it.' })));
+      video.src = url; slot.replaceChildren(video);
+    } else {
+      const img = el('img', { alt: item.name, decoding: 'async' });
+      img.src = url;
+      slot.replaceChildren(el('button', { class: 'img-btn', type: 'button', 'aria-label': 'Open ' + item.name, onclick: () => openViewer(item) }, img));
+    }
+  } catch (err) {
+    if (token === state.renderToken) slot.replaceChildren(el('div', { class: 'media-error', text: 'The stored file for this item is missing or unreadable.' }));
+  }
+}
+/** Album cover: a still image, or the first frame of a video. */
+async function loadCover(slot, token) {
+  const item = state.items.find(i => i.id === slot.dataset.id); if (!item) return;
+  try {
+    const blob = await getBlob(item.id);
+    if (token !== state.renderToken) return;
+    if (!blob) throw new Error('missing');
+    const url = trackUrl(blob);
+    if (item.kind === 'video') {
+      const v = el('video', { preload: 'metadata', playsinline: true, 'aria-hidden': 'true', tabindex: '-1' }); v.muted = true; v.src = url + '#t=0.1'; slot.replaceChildren(v);
+    } else { const img = el('img', { alt: '', decoding: 'async' }); img.src = url; slot.replaceChildren(img); }
+  } catch (e) { if (token === state.renderToken) slot.replaceChildren(el('div', { class: 'skeleton', text: 'Preview unavailable' })); }
+}
+
+const smallBtn = (label, handler, cls = '', aria = '') => el('button', { class: 'btn small ' + cls, type: 'button', text: label, 'aria-label': aria || label, onclick: handler });
+
+/* ==========================================================================
+   14. Gallery tab
+   ========================================================================== */
 function visibleItems() {
   const q = state.search.trim().toLowerCase();
-  const list = state.items.filter(i => {
+  const list = activeItems().filter(i => {
+    if (state.albumFilter === 'none') { if (i.albumIds.length) return false; }
+    else if (state.albumFilter !== 'all' && !i.albumIds.includes(state.albumFilter)) return false;
     if (state.filter === 'image' && i.kind !== 'image') return false;
     if (state.filter === 'video' && i.kind !== 'video') return false;
     if (state.filter === 'favorites' && !i.favorite) return false;
@@ -1156,142 +1639,301 @@ function visibleItems() {
   return list.sort(sorters[state.sort]);
 }
 
-function renderStats() {
-  $('#statTotal').textContent = state.items.length;
-  $('#statPhotos').textContent = state.items.filter(i => i.kind === 'image').length;
-  $('#statVideos').textContent = state.items.filter(i => i.kind === 'video').length;
-  $('#statStorage').textContent = formatBytes(state.items.reduce((sum, i) => sum + i.size, 0));
-}
-
 function renderGallery() {
-  const token = ++state.renderToken;
-  revokeAllUrls();
-  if (state.observer) state.observer.disconnect();
+  const token = startRender();
   const host = $('#gallery');
   host.className = 'gallery ' + (prefs.view === 'list' ? 'list' : 'grid');
   host.replaceChildren();
   $('#viewGrid').setAttribute('aria-pressed', String(prefs.view !== 'list'));
   $('#viewList').setAttribute('aria-pressed', String(prefs.view === 'list'));
-  updateSelectBar();
 
-  const list = visibleItems();
-  $('#resultLine').textContent = state.items.length ? `Showing ${list.length} of ${state.items.length} file${state.items.length === 1 ? '' : 's'}` : '';
+  const list = visibleItems(), total = activeItems().length;
+  $('#resultLine').textContent = total ? `Showing ${list.length} of ${total} file${total === 1 ? '' : 's'}` : '';
   if (!list.length) {
-    const msg = state.items.length ? ['No matching files', 'Try a different search or filter.'] : ['Your gallery is ready', 'Add photos or MP4 videos, or drag and drop them onto this page.'];
+    let msg = ['Your gallery is ready', 'Add photos or MP4 videos, or drag and drop them onto this page.'];
+    if (currentAlbum() && !itemsInAlbum(state.albumFilter).length) msg = ['This album is empty', 'Use “Albums” on any file, or select several files and choose “Add to album”.'];
+    else if (total) msg = ['No matching files', 'Try a different search, filter or album.'];
     host.append(el('div', { class: 'empty' }, el('h3', { text: msg[0] }), el('p', { text: msg[1] })));
     return;
   }
-  state.observer = 'IntersectionObserver' in window
-    ? new IntersectionObserver(entries => entries.forEach(en => {
-        if (en.isIntersecting) { state.observer.unobserve(en.target); loadCardMedia(en.target, token); }
-      }), { rootMargin: '300px' })
-    : null;
-  list.forEach(item => {
-    const card = buildCard(item); host.append(card);
-    const slot = card.querySelector('.thumb-slot');
-    if (state.observer) state.observer.observe(slot); else loadCardMedia(slot, token);
-  });
+  const slots = [];
+  list.forEach(item => { const card = buildCard(item, 'gallery'); host.append(card); slots.push(card.querySelector('.thumb-slot')); });
+  lazyLoad(slots, token, loadCardMedia);
 }
 
-async function loadCardMedia(slot, token) {
-  const item = state.items.find(i => i.id === slot.dataset.id); if (!item) return;
-  try {
-    const blob = await getBlob(item.id);
-    if (token !== state.renderToken) return;           // gallery re-rendered meanwhile
-    if (!blob) throw new Error('missing');
-    const url = trackUrl(blob);
-    if (item.kind === 'video') {
-      const video = el('video', { controls: true, preload: 'metadata', playsinline: true, 'aria-label': 'Video: ' + item.name });
-      video.addEventListener('error', () => slot.replaceChildren(el('div', { class: 'media-error', text: 'This browser cannot play this video (the codec may be unsupported). You can still download it.' })));
-      video.src = url; slot.replaceChildren(video);
-    } else {
-      const img = el('img', { alt: item.name, decoding: 'async' });
-      img.src = url;
-      slot.replaceChildren(el('button', { class: 'img-btn', type: 'button', 'aria-label': 'Open ' + item.name, onclick: () => openViewer(item) }, img));
-    }
-  } catch (err) {
-    if (token === state.renderToken) slot.replaceChildren(el('div', { class: 'media-error', text: 'Could not load this file.' }));
-  }
-}
-
-function buildCard(item) {
-  const isSelected = state.selected.has(item.id);
+/** One card builder for the gallery and the Trash. */
+function buildCard(item, mode) {
+  const inTrash = mode === 'trash';
+  const selSet = inTrash ? state.trashSelected : state.selected;
+  const selectable = inTrash || state.selectMode;
+  const isSelected = selSet.has(item.id);
   const slot = el('div', { class: 'thumb-slot', dataset: { id: item.id } }, el('div', { class: 'skeleton', text: 'Loading…' }));
-  const checkbox = state.selectMode ? el('label', { class: 'select-box' }, el('input', {
+  const checkbox = selectable ? el('label', { class: 'select-box' }, el('input', {
     type: 'checkbox', checked: isSelected, 'aria-label': 'Select ' + item.name,
-    onchange: e => { e.target.checked ? state.selected.add(item.id) : state.selected.delete(item.id); card.classList.toggle('is-selected', e.target.checked); updateSelectBar(); }
+    onchange: e => { e.target.checked ? selSet.add(item.id) : selSet.delete(item.id); card.classList.toggle('is-selected', e.target.checked); inTrash ? updateTrashBar() : updateSelectBar(); }
   })) : null;
-  const fav = el('button', { class: 'icon-btn' + (item.favorite ? ' on' : ''), type: 'button', 'aria-pressed': String(!!item.favorite),
-    'aria-label': (item.favorite ? 'Remove from favourites: ' : 'Add to favourites: ') + item.name, title: 'Favourite', text: item.favorite ? '★' : '☆',
-    onclick: () => toggleFavorite(item) });
-  const small = (label, handler, cls = '') => el('button', { class: 'btn small ' + cls, type: 'button', text: label, 'aria-label': `${label} ${item.name}`, onclick: handler });
-  const card = el('article', { class: 'media-card' + (isSelected ? ' is-selected' : '') },
-    checkbox, slot,
-    el('div', { class: 'card-body' },
-      el('div', { class: 'meta' },
-        el('span', { class: 'name', title: item.name, text: item.name }),
-        el('span', { class: 'sub', text: `${item.kind === 'video' ? 'Video' : 'Image'} · ${formatBytes(item.size)} · ${formatDate(item.created)}` })),
-      el('div', { class: 'card-actions' }, fav, small('Open', () => openViewer(item)), small('Rename', () => renameItem(item)), small('Download', () => downloadItem(item)), small('Delete', () => deleteItems([item.id]), 'danger'))));
+
+  const kindLabel = item.kind === 'video' ? 'Video' : 'Image';
+  const subText = inTrash
+    ? `${kindLabel} · ${formatBytes(item.size)} · Deleted ${formatDate(item.trashedAt)}${trashRetentionNote(item)}`
+    : `${kindLabel} · ${formatBytes(item.size)} · ${formatDate(item.created)}`;
+  const albumNames = item.albumIds.map(id => (albumById(id) || {}).name).filter(Boolean);
+  const meta = el('div', { class: 'meta' },
+    el('span', { class: 'name', title: item.name, text: item.name }),
+    el('span', { class: 'sub', text: subText }),
+    !inTrash && albumNames.length ? el('span', { class: 'sub albums-line', title: albumNames.join(', '), text: '▤ ' + albumNames.join(', ') }) : null);
+
+  let actions;
+  if (inTrash) {
+    actions = [smallBtn('Restore', () => restoreItems([item.id]), 'primary', 'Restore ' + item.name),
+      smallBtn('Open', () => openViewer(item), '', 'Open ' + item.name),
+      smallBtn('Delete permanently', () => deleteForever([item.id]), 'danger', 'Delete permanently ' + item.name)];
+  } else {
+    const fav = el('button', { class: 'icon-btn' + (item.favorite ? ' on' : ''), type: 'button', 'aria-pressed': String(!!item.favorite),
+      'aria-label': (item.favorite ? 'Remove from favourites: ' : 'Add to favourites: ') + item.name, title: 'Favourite', text: item.favorite ? '★' : '☆',
+      onclick: () => toggleFavorite(item) });
+    actions = [fav, smallBtn('Open', () => openViewer(item), '', 'Open ' + item.name),
+      smallBtn('Rename', () => renameItem(item), '', 'Rename ' + item.name),
+      smallBtn('Albums', () => assignAlbumsFlow([item.id]), '', 'Choose albums for ' + item.name),
+      smallBtn('Download', () => downloadItem(item), '', 'Download ' + item.name),
+      currentAlbum() && item.albumIds.includes(state.albumFilter) ? smallBtn('Remove from album', () => removeFromAlbum([item.id], state.albumFilter), '', `Remove ${item.name} from this album (the file is kept)`) : null,
+      smallBtn('Trash', () => trashFlow([item.id]), 'danger', 'Move to Trash: ' + item.name)];
+  }
+  const card = el('article', { class: 'media-card' + (isSelected ? ' is-selected' : '') }, checkbox, slot,
+    el('div', { class: 'card-body' }, meta, el('div', { class: 'card-actions' }, actions)));
   return card;
 }
 
-/* ---------- item actions ---------- */
+/* ---------- file actions ---------- */
 async function toggleFavorite(item) {
-  try {
-    await updateMeta(item.id, { favorite: !item.favorite });
-    item.favorite = !item.favorite;
-    renderGallery();
-  } catch (err) { toast('Could not update favourite: ' + err.message, 'error'); }
+  try { await updateMeta(item.id, { favorite: !item.favorite }); item.favorite = !item.favorite; renderGallery(); renderChrome(); }
+  catch (err) { toast('Could not update favourite: ' + friendlyError(err, null), 'error'); }
 }
 async function renameItem(item) {
-  const name = await promptName(item.name);
+  const name = await promptName(item.name, { validate: n => n.length > 150 ? 'File names can be up to 150 characters.' : null });
   if (!name || name === item.name) return;
   try { await updateMeta(item.id, { name }); item.name = name; renderGallery(); toast('File renamed.', 'success'); }
-  catch (err) { toast('Could not rename: ' + err.message, 'error'); }
+  catch (err) { toast('Could not rename: ' + friendlyError(err, null), 'error'); }
 }
 async function downloadItem(item) {
   try {
-    const blob = await getBlob(item.id); if (!blob) throw new Error('File not found.');
-    const url = URL.createObjectURL(blob);
-    const link = el('a', { href: url, download: item.name });
-    document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    const blob = await getBlob(item.id); if (!blob) throw new Error('The stored file is missing.');
+    downloadBlob(blob, item.name, 15000);
   } catch (err) { toast('Could not download: ' + err.message, 'error'); }
 }
-async function deleteItems(ids) {
-  const count = ids.length;
-  const ok = await confirmAction({
-    title: count === 1 ? 'Delete this file?' : `Delete ${count} files?`,
-    message: 'This permanently removes ' + (count === 1 ? 'it' : 'them') + ' from this browser. This cannot be undone.',
-    confirmLabel: 'Delete', danger: true
-  });
-  if (!ok) return;
-  try {
-    await deleteMedia(ids);
-    state.items = state.items.filter(i => !ids.includes(i.id));
-    ids.forEach(id => state.selected.delete(id));
-    renderStats(); renderGallery(); updateStorageInfo();
-    toast(count === 1 ? 'File deleted.' : `${count} files deleted.`, 'success');
-  } catch (err) { toast('Could not delete: ' + err.message, 'error'); }
+function downloadBlob(blob, filename, revokeAfterMs = 600000) {
+  const url = URL.createObjectURL(blob);
+  const link = el('a', { href: url, download: filename });
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), revokeAfterMs);
 }
 
 /* ---------- multi-select ---------- */
 function updateSelectBar() {
+  const album = currentAlbum();
   $('#selectBar').classList.toggle('hidden', !state.selectMode);
   $('#selectToggle').setAttribute('aria-pressed', String(state.selectMode));
   $('#selectCount').textContent = `${state.selected.size} selected`;
-  $('#deleteSelected').disabled = state.selected.size === 0;
+  const none = state.selected.size === 0;
+  $('#bulkAlbum').disabled = none; $('#deleteSelected').disabled = none;
+  $('#bulkRemoveAlbum').disabled = none; $('#bulkRemoveAlbum').classList.toggle('hidden', !album);
 }
 
-/* ---------- viewer ---------- */
+/* ==========================================================================
+   15. Albums
+   ========================================================================== */
+function validateAlbumName(name, exceptId = null) {
+  if (name.length > 60) return 'Album names can be up to 60 characters.';
+  if (state.albums.some(a => a.id !== exceptId && a.name.toLowerCase() === name.toLowerCase())) return 'An album with this name already exists.';
+  return null;
+}
+async function createAlbumFlow() {
+  const name = await promptName('', { title: 'New album', label: 'Album name', confirmLabel: 'Create', validate: n => validateAlbumName(n) });
+  if (!name) return null;
+  try {
+    const album = { id: uid(), name, created: Date.now(), updated: Date.now() };
+    await putAlbum(album);
+    await refreshItems();
+    toast(`Album “${name}” created.`, 'success');
+    return album;
+  } catch (err) { toast('Could not create the album: ' + friendlyError(err, null), 'error'); return null; }
+}
+async function renameAlbumFlow(album) {
+  const name = await promptName(album.name, { title: 'Rename album', label: 'Album name', validate: n => validateAlbumName(n, album.id) });
+  if (!name || name === album.name) return;
+  try { await putAlbum({ ...album, name, updated: Date.now() }); await refreshItems(); toast('Album renamed.', 'success'); }
+  catch (err) { toast('Could not rename the album: ' + friendlyError(err, null), 'error'); }
+}
+async function deleteAlbumFlow(album) {
+  const count = itemsInAlbum(album.id).length;
+  const ok = await confirmAction({
+    title: `Delete album “${album.name}”?`,
+    message: `Only the album is removed. Its ${count} file${count === 1 ? '' : 's'} will stay in your main gallery (and in any other albums they belong to). Nothing is moved to Trash and no file is deleted.`,
+    confirmLabel: 'Delete album', danger: true
+  });
+  if (!ok) return;
+  try {
+    await removeAlbum(album.id);
+    if (state.albumFilter === album.id) state.albumFilter = 'all';
+    await refreshItems(); toast(`Album “${album.name}” deleted. Its files are still in your gallery.`, 'success');
+  } catch (err) { toast('Could not delete the album: ' + friendlyError(err, null), 'error'); }
+}
+async function assignAlbumsFlow(ids) {
+  const single = ids.length === 1;
+  const item = single ? state.items.find(i => i.id === ids[0]) : null;
+  const res = await pickAlbums({
+    title: single ? 'Albums for this file' : `Add ${ids.length} files to albums`,
+    help: single ? 'Tick every album this file should appear in. The file itself is never copied.' : 'The selected files are added to every ticked album. Existing memberships are kept.',
+    initial: new Set(single && item ? item.albumIds : [])
+  });
+  if (!res || (!res.add.length && !res.remove.length)) return;
+  try {
+    await patchMeta(ids, m => ({ ...m, albumIds: [...new Set([...m.albumIds.filter(a => !res.remove.includes(a)), ...res.add])] }));
+    await refreshItems(); toast('Albums updated.', 'success');
+  } catch (err) { toast('Could not update albums: ' + friendlyError(err, null), 'error'); }
+}
+async function removeFromAlbum(ids, albumId) {
+  try {
+    await patchMeta(ids, m => ({ ...m, albumIds: m.albumIds.filter(a => a !== albumId) }));
+    ids.forEach(id => state.selected.delete(id));
+    await refreshItems();
+    toast(`Removed from album. The file${ids.length === 1 ? ' is' : 's are'} still in your gallery.`, 'success');
+  } catch (err) { toast('Could not update the album: ' + friendlyError(err, null), 'error'); }
+}
+function openAlbum(id) {
+  state.albumFilter = id; state.filter = 'all'; state.search = '';
+  state.selectMode = false; state.selected.clear();
+  showTab('gallery');
+}
+function renderAlbums() {
+  const token = startRender();
+  const host = $('#albumGrid'); host.replaceChildren();
+  if (!state.albums.length) {
+    host.append(el('div', { class: 'empty' }, el('h3', { text: 'No albums yet' }),
+      el('p', { text: 'Create an album to group related photos and videos. Albums only reference your files, so nothing is duplicated.' }),
+      el('div', { class: 'actions' }, el('button', { class: 'btn primary', type: 'button', text: '＋ New album', onclick: createAlbumFlow }))));
+    return;
+  }
+  const slots = [];
+  state.albums.forEach(a => {
+    const items = itemsInAlbum(a.id).sort((x, y) => y.created - x.created);
+    const cover = items.find(i => i.kind === 'image') || items[0] || null;
+    const slot = el('div', { class: 'cover-slot', dataset: { id: cover ? cover.id : '' } }, el('div', { class: 'skeleton', text: cover ? 'Loading…' : 'Empty album' }));
+    if (cover) slots.push(slot);
+    host.append(el('article', { class: 'album-card' },
+      el('button', { class: 'cover-btn', type: 'button', tabindex: '-1', 'aria-hidden': 'true', onclick: () => openAlbum(a.id) }, slot),
+      el('div', { class: 'card-body' },
+        el('div', { class: 'meta' }, el('span', { class: 'name', title: a.name, text: a.name }), el('span', { class: 'sub', text: `${items.length} item${items.length === 1 ? '' : 's'}` })),
+        el('div', { class: 'card-actions' },
+          smallBtn('Open', () => openAlbum(a.id), 'primary', 'Open album ' + a.name), smallBtn('Rename', () => renameAlbumFlow(a), '', 'Rename album ' + a.name),
+          smallBtn('Delete', () => deleteAlbumFlow(a), 'danger', 'Delete album ' + a.name)))));
+  });
+  lazyLoad(slots, token, loadCover);
+}
+
+/* ==========================================================================
+   16. Trash (Recently Deleted)
+   ========================================================================== */
+function trashRetentionNote(item) {
+  const days = prefs.trashRetentionDays; if (!days) return '';
+  const left = Math.ceil((item.trashedAt + days * DAY_MS - Date.now()) / DAY_MS);
+  return left > 0 ? ` · offered for permanent deletion in ${left} day${left === 1 ? '' : 's'}` : ' · due for permanent deletion';
+}
+async function moveToTrash(ids) {
+  try {
+    const now = Date.now();
+    await patchMeta(ids, m => ({ ...m, trashedAt: now }));     // album references are kept, so a restore returns the file to its albums
+    ids.forEach(id => state.selected.delete(id));
+    await refreshItems();
+    toast(ids.length === 1 ? 'Moved to Trash.' : `${ids.length} files moved to Trash.`, 'success', 9000, { label: 'Undo', onClick: () => restoreItems(ids, { quiet: true }) });
+  } catch (err) { toast('Could not move to Trash: ' + friendlyError(err, null), 'error'); }
+}
+async function trashFlow(ids) {
+  if (!ids.length) return;
+  if (ids.length > 1) {
+    const ok = await confirmAction({ title: `Move ${ids.length} files to Trash?`, message: 'They disappear from the gallery and from albums, and can be restored from Trash.', confirmLabel: 'Move to Trash' });
+    if (!ok) return;
+  }
+  await moveToTrash(ids);
+}
+async function restoreItems(ids, { quiet = false } = {}) {
+  try {
+    const present = [], missing = [];
+    for (const id of ids) ((await hasFile(id)) ? present : missing).push(id);
+    const valid = new Set(state.albums.map(a => a.id));
+    if (present.length) await patchMeta(present, m => ({ ...m, trashedAt: null, albumIds: m.albumIds.filter(a => valid.has(a)) }));
+    ids.forEach(id => state.trashSelected.delete(id));
+    await refreshItems();
+    if (present.length && !quiet) toast(present.length === 1 ? 'Restored.' : `${present.length} files restored.`, 'success');
+    if (missing.length) toast(`${missing.length} item${missing.length === 1 ? ' has' : 's have'} no stored file data and could not be restored. You can delete ${missing.length === 1 ? 'it' : 'them'} permanently.`, 'warn', 9000);
+  } catch (err) { toast('Could not restore: ' + friendlyError(err, null), 'error'); }
+}
+async function deleteForever(ids) {
+  if (!ids.length) return;
+  const bytes = ids.reduce((s, id) => s + ((state.items.find(i => i.id === id) || {}).size || 0), 0);
+  const ok = await confirmAction({
+    title: ids.length === 1 ? 'Delete permanently?' : `Delete ${ids.length} files permanently?`,
+    message: `This removes ${ids.length === 1 ? 'the file' : 'the files'} (${formatBytes(bytes)}) from this browser for good. Permanently deleted items cannot be restored through the app.`,
+    confirmLabel: 'Delete permanently', danger: true
+  });
+  if (!ok) return;
+  try {
+    await deleteMedia(ids); ids.forEach(id => state.trashSelected.delete(id));
+    await refreshItems(); toast(ids.length === 1 ? 'Permanently deleted.' : `${ids.length} files permanently deleted.`, 'success');
+  } catch (err) { toast('Could not delete: ' + friendlyError(err, null), 'error'); }
+}
+async function emptyTrashFlow() {
+  const ids = trashedItems().map(i => i.id);
+  if (!ids.length) { toast('Trash is already empty.'); return; }
+  await deleteForever(ids);
+}
+function renderTrash() {
+  const token = startRender();
+  const host = $('#trashGrid'); host.replaceChildren();
+  const list = trashedItems().sort((a, b) => b.trashedAt - a.trashedAt);
+  const days = prefs.trashRetentionDays;
+  $('#trashInfo').textContent = days
+    ? `Deleted files stay here until you restore or delete them. Items older than ${days} days are offered for permanent deletion (you are always asked first).`
+    : 'Deleted files stay here until you restore them or delete them permanently. Nothing is removed automatically.';
+  $('#emptyTrash').disabled = !list.length; $('#trashSelectAll').disabled = !list.length;
+  if (!list.length) { host.append(el('div', { class: 'empty' }, el('h3', { text: 'Trash is empty' }), el('p', { text: 'Files you delete from the gallery appear here and can be restored.' }))); return; }
+  const slots = [];
+  list.forEach(item => { const card = buildCard(item, 'trash'); host.append(card); slots.push(card.querySelector('.thumb-slot')); });
+  lazyLoad(slots, token, loadCardMedia);
+}
+function updateTrashBar() {
+  const n = state.trashSelected.size;
+  $('#trashBar').classList.toggle('hidden', n === 0);
+  $('#trashCount').textContent = `${n} selected`;
+}
+/** Never deletes silently: expired items are only removed after an explicit confirmation. */
+async function checkExpiredTrash() {
+  const days = prefs.trashRetentionDays; if (!days) return;
+  const cutoff = Date.now() - days * DAY_MS;
+  const expired = trashedItems().filter(i => i.trashedAt < cutoff);
+  if (!expired.length) return;
+  const bytes = expired.reduce((s, i) => s + i.size, 0);
+  const ok = await confirmAction({
+    title: 'Permanently delete expired Trash items?',
+    message: `${expired.length} item${expired.length === 1 ? ' has' : 's have'} been in Trash for more than ${days} days (${formatBytes(bytes)}). Deleting ${expired.length === 1 ? 'it' : 'them'} is permanent and cannot be undone through the app. Choose Keep to leave them in Trash.`,
+    confirmLabel: 'Delete permanently', danger: true
+  });
+  if (!ok) return;
+  try { await deleteMedia(expired.map(i => i.id)); await refreshItems(); toast(`${expired.length} expired item${expired.length === 1 ? '' : 's'} permanently deleted.`, 'success'); }
+  catch (err) { toast('Could not clean up Trash: ' + friendlyError(err, null), 'error'); }
+}
+
+/* ==========================================================================
+   17. Viewer
+   ========================================================================== */
 let viewerUrl = null;
 async function openViewer(item) {
   try {
-    const blob = await getBlob(item.id); if (!blob) throw new Error('File not found.');
+    const blob = await getBlob(item.id); if (!blob) throw new Error('The stored file is missing.');
     if (viewerUrl) URL.revokeObjectURL(viewerUrl);
     viewerUrl = URL.createObjectURL(blob);
     const media = item.kind === 'video'
-      ? el('video', { controls: true, autoplay: false, playsinline: true, 'aria-label': 'Video: ' + item.name })
+      ? el('video', { controls: true, playsinline: true, 'aria-label': 'Video: ' + item.name })
       : el('img', { alt: item.name });
     media.src = viewerUrl;
     $('#viewerName').textContent = item.name;
@@ -1299,9 +1941,7 @@ async function openViewer(item) {
     $('#viewerDialog').showModal();
   } catch (err) { toast('Could not open file: ' + err.message, 'error'); }
 }
-function closeViewer() {
-  const dlg = $('#viewerDialog'); if (dlg.open) dlg.close();
-}
+function closeViewer() { const dlg = $('#viewerDialog'); if (dlg.open) dlg.close(); }
 $('#viewerDialog').addEventListener('close', () => {
   const v = $('#viewerBody').querySelector('video'); if (v) v.pause();
   $('#viewerBody').replaceChildren();
@@ -1311,10 +1951,11 @@ $('#viewerClose').addEventListener('click', closeViewer);
 $('#viewerDialog').addEventListener('click', e => { if (e.target === e.currentTarget) closeViewer(); });
 
 /* ==========================================================================
-   14. Storage information
+   18. Storage information
    ========================================================================== */
 async function updateStorageInfo() {
-  const used = state.items.reduce((sum, i) => sum + i.size, 0);
+  const all = state.items.reduce((sum, i) => sum + i.size, 0);
+  const trashBytes = trashedItems().reduce((sum, i) => sum + i.size, 0);
   let estimate = null, persisted = null;
   try { if (navigator.storage && navigator.storage.estimate) estimate = await navigator.storage.estimate(); } catch (e) { /* ignore */ }
   try { if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch (e) { /* ignore */ }
@@ -1324,44 +1965,441 @@ async function updateStorageInfo() {
     const fraction = (estimate.usage || 0) / estimate.quota;
     meter.firstElementChild.style.width = Math.min(100, Math.max(1, fraction * 100)) + '%';
     meter.classList.toggle('high', fraction >= 0.8);
-    $('#statStorageSub').textContent = `of about ${formatBytes(estimate.quota)} available`;
-    if (fraction >= 0.8) { low.textContent = `Browser storage is ${Math.round(fraction * 100)}% full. Delete files you no longer need before adding more.`; low.classList.remove('hidden'); }
+    $('#statStorageSub').textContent = `of about ${formatBytes(estimate.quota)} available${trashBytes ? ` · ${formatBytes(trashBytes)} in Trash` : ''}`;
+    if (fraction >= 0.8) { low.textContent = `Browser storage is ${Math.round(fraction * 100)}% full. Delete files you no longer need (and empty Trash) before adding more.`; low.classList.remove('hidden'); }
     else low.classList.add('hidden');
-  } else { $('#statStorageSub').textContent = 'Storage used'; low.classList.add('hidden'); }
+  } else { $('#statStorageSub').textContent = trashBytes ? `Storage used · ${formatBytes(trashBytes)} in Trash` : 'Storage used'; low.classList.add('hidden'); }
 
-  $('#setUsed').textContent = `${formatBytes(used)} in ${state.items.length} file${state.items.length === 1 ? '' : 's'}`;
+  $('#setUsed').textContent = `${formatBytes(all)} in ${state.items.length} file${state.items.length === 1 ? '' : 's'} (${formatBytes(trashBytes)} in Trash)`;
   $('#setQuota').textContent = estimate && estimate.quota ? `${formatBytes(estimate.usage || 0)} used of about ${formatBytes(estimate.quota)}` : 'Not reported by this browser';
   $('#setPersist').textContent = persisted === null ? 'Not supported' : persisted ? 'Granted — the browser will not evict your data automatically' : 'Not granted — the browser may clear data if the device runs low on space';
 }
 
+
 /* ==========================================================================
-   15. Settings
+   19. Backup & restore
+   Format: a standard ZIP archive (stored/uncompressed entries; photos and videos are already
+   compressed). Written and read by the small, dependency-free code below, so nothing external
+   has to load on GitHub Pages.
+     manifest.json            -> format, version, albums, preferences, one record per media file
+     media/<id>.<ext>         -> the ORIGINAL file bytes
+   Big libraries are split into several independent ZIP "parts"; each part has its own manifest.
    ========================================================================== */
-let settingsPicker = null;
+const BACKUP_FORMAT = 'vault-gallery-backup', BACKUP_VERSION = 1;
+const ZIP_LIMIT = 0xFFFFF000;                          // classic (non-ZIP64) ZIP offsets must stay below 4 GiB
+const enc = new TextEncoder(), dec = new TextDecoder('utf-8');
+class BackupError extends Error {}
+const cancelError = () => Object.assign(new Error('Cancelled'), { name: 'CancelError' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- CRC-32 (used to detect corrupted files) ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crcUpdate(crc, bytes) { for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8); return crc; }
+/** Reads the blob in 4 MB slices so memory use stays flat even for multi-GB videos. */
+async function crc32Blob(blob, onBytes, isCancelled) {
+  let crc = 0xFFFFFFFF; const CHUNK = 4 * 1024 * 1024;
+  for (let o = 0; o < blob.size; o += CHUNK) {
+    if (isCancelled && isCancelled()) throw cancelError();
+    const buf = new Uint8Array(await blob.slice(o, Math.min(o + CHUNK, blob.size)).arrayBuffer());
+    crc = crcUpdate(crc, buf); if (onBytes) onBytes(buf.length);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/* ---------- ZIP writer ---------- */
+function dosDateTime(ms) {
+  const d = new Date(ms), year = Math.max(1980, d.getFullYear());
+  return { time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date: ((year - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() };
+}
+class ZipBuilder {
+  constructor() { this.pieces = []; this.offset = 0; this.entries = []; }
+  add(name, blob, crc) {
+    const nameBytes = enc.encode(name), dos = dosDateTime(Date.now());
+    if (this.offset + 30 + nameBytes.length + blob.size > ZIP_LIMIT) throw new BackupError('This backup part would exceed the 4 GB ZIP limit.');
+    const head = new DataView(new ArrayBuffer(30 + nameBytes.length));
+    head.setUint32(0, 0x04034b50, true); head.setUint16(4, 20, true); head.setUint16(6, 0x0800, true); head.setUint16(8, 0, true);
+    head.setUint16(10, dos.time, true); head.setUint16(12, dos.date, true); head.setUint32(14, crc, true);
+    head.setUint32(18, blob.size, true); head.setUint32(22, blob.size, true); head.setUint16(26, nameBytes.length, true); head.setUint16(28, 0, true);
+    const bytes = new Uint8Array(head.buffer); bytes.set(nameBytes, 30);
+    this.entries.push({ nameBytes, crc, size: blob.size, dos, offset: this.offset });
+    this.pieces.push(bytes, blob); this.offset += bytes.length + blob.size;
+  }
+  finish() {
+    const central = this.entries.map(e => {
+      const v = new DataView(new ArrayBuffer(46 + e.nameBytes.length));
+      v.setUint32(0, 0x02014b50, true); v.setUint16(4, 0x031E, true); v.setUint16(6, 20, true); v.setUint16(8, 0x0800, true); v.setUint16(10, 0, true);
+      v.setUint16(12, e.dos.time, true); v.setUint16(14, e.dos.date, true); v.setUint32(16, e.crc, true);
+      v.setUint32(20, e.size, true); v.setUint32(24, e.size, true); v.setUint16(28, e.nameBytes.length, true);
+      v.setUint32(42, e.offset, true);
+      const out = new Uint8Array(v.buffer); out.set(e.nameBytes, 46); return out;
+    });
+    const cdSize = central.reduce((s, c) => s + c.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, this.entries.length, true); end.setUint16(10, this.entries.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, this.offset, true);
+    return new Blob([...this.pieces, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  }
+}
+
+/* ---------- ZIP reader ---------- */
+async function readZipIndex(file) {
+  if (file.size < 22) throw new BackupError('This file is too small to be a backup.');
+  const tailLen = Math.min(file.size, 22 + 65535);
+  const tail = new DataView(await file.slice(file.size - tailLen).arrayBuffer());
+  let p = -1;
+  for (let i = tail.byteLength - 22; i >= 0; i--) {
+    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) <= tail.byteLength) { p = i; break; }
+  }
+  if (p < 0) throw new BackupError('This is not a valid ZIP file (end-of-archive record not found). It may be truncated or corrupted.');
+  const total = tail.getUint16(p + 10, true), cdSize = tail.getUint32(p + 12, true), cdOff = tail.getUint32(p + 16, true);
+  if (total === 0xFFFF || cdSize === 0xFFFFFFFF || cdOff === 0xFFFFFFFF) throw new BackupError('ZIP64 archives are not supported. Re-create the backup with this app.');
+  if (cdOff + cdSize > file.size) throw new BackupError('The archive directory lies outside the file, so the file is truncated or corrupted.');
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  const entries = new Map(); let o = 0;
+  for (let i = 0; i < total; i++) {
+    if (o + 46 > cd.byteLength || cd.getUint32(o, true) !== 0x02014b50) throw new BackupError('The archive directory is corrupted.');
+    const nameLen = cd.getUint16(o + 28, true), extraLen = cd.getUint16(o + 30, true), commentLen = cd.getUint16(o + 32, true);
+    if (o + 46 + nameLen > cd.byteLength) throw new BackupError('The archive directory is corrupted.');
+    const name = dec.decode(new Uint8Array(cd.buffer, o + 46, nameLen));
+    entries.set(name, { name, flags: cd.getUint16(o + 8, true), method: cd.getUint16(o + 10, true), crc: cd.getUint32(o + 16, true),
+      csize: cd.getUint32(o + 20, true), usize: cd.getUint32(o + 24, true), lho: cd.getUint32(o + 42, true) });
+    o += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
+/** Returns the entry's bytes as a Blob slice (no copy for stored entries). */
+async function zipEntryBlob(file, entry) {
+  if (entry.flags & 1) throw new BackupError(`${entry.name} is password-protected, which is not supported.`);
+  const h = new DataView(await file.slice(entry.lho, entry.lho + 30).arrayBuffer());
+  if (h.byteLength < 30 || h.getUint32(0, true) !== 0x04034b50) throw new BackupError(`${entry.name}: invalid file header (corrupted archive).`);
+  const start = entry.lho + 30 + h.getUint16(26, true) + h.getUint16(28, true);
+  if (start + entry.csize > file.size) throw new BackupError(`${entry.name} is truncated (the file ends too early).`);
+  const raw = file.slice(start, start + entry.csize);
+  if (entry.method === 0) return raw;
+  if (entry.method === 8) {                         // tolerate backups re-zipped by other tools
+    if (typeof DecompressionStream === 'undefined') throw new BackupError('This browser cannot read compressed ZIP entries.');
+    return await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+  }
+  throw new BackupError(`${entry.name}: unsupported ZIP compression method ${entry.method}.`);
+}
+
+/* ---------- Export ---------- */
+const safeExt = name => { const e = extOf(name).replace(/[^a-z0-9]/g, '').slice(0, 8); return e ? '.' + e : '.bin'; };
+function preferencesSnapshot() {
+  return { theme: prefs.theme, view: prefs.view, autoLockMinutes: prefs.autoLockMinutes, lockStyle: prefs.lockStyle, custom: { ...prefs.custom }, trashRetentionDays: prefs.trashRetentionDays };
+}
+async function createBackup({ includeTrash, includePrefs, partBytes }) {
+  if (!state.dbOk) { toast('Storage is unavailable, so a backup cannot be created.', 'error'); return; }
+  const media = state.items.filter(i => includeTrash || !i.trashedAt).sort((a, b) => a.created - b.created);
+  if (!media.length && !state.albums.length) { toast('There is nothing to back up yet.', 'warn'); return; }
+  const prog = openProgress('Creating backup');
+  const skipped = [], problems = [];
+  try {
+    // Plan parts so that each stays below the chosen size.
+    const parts = []; let cur = [], curBytes = 0;
+    for (const m of media) {
+      if (m.size > ZIP_LIMIT - 1024) { skipped.push(`${m.name}: larger than 4 GB, which the ZIP format used here cannot hold`); continue; }
+      if (cur.length && (curBytes + m.size > partBytes || cur.length >= 40000)) { parts.push(cur); cur = []; curBytes = 0; }
+      cur.push(m); curBytes += m.size;
+    }
+    if (cur.length || !parts.length) parts.push(cur);
+    const totalBytes = Math.max(1, media.reduce((s, m) => s + m.size, 0));
+    const backupId = uid(), stamp = new Date().toISOString().slice(0, 10);
+    let done = 0, exported = 0;
+
+    for (let p = 0; p < parts.length; p++) {
+      const entries = [];
+      for (const m of parts[p]) {
+        if (prog.cancelled) throw cancelError();
+        prog.update(`Part ${p + 1} of ${parts.length}: reading ${m.name}`, done / totalBytes);
+        let blob = null;
+        try { blob = await getBlob(m.id); } catch (e) { /* handled below */ }
+        if (!blob) { problems.push(`${m.name}: the stored file is missing or unreadable, so it is not in the backup`); done += m.size; continue; }
+        const crc = await crc32Blob(blob, n => { done += n; prog.update(`Part ${p + 1} of ${parts.length}: ${m.name}`, done / totalBytes); }, prog.isCancelled);
+        entries.push({ meta: m, blob, crc, path: `media/${m.id}${safeExt(m.name)}` });
+      }
+      const manifest = {
+        format: BACKUP_FORMAT, version: BACKUP_VERSION, app: 'Vault Gallery', created: new Date().toISOString(),
+        backupId, part: p + 1, parts: parts.length,
+        albums: state.albums.map(a => ({ id: a.id, name: a.name, created: a.created, updated: a.updated })),
+        preferences: includePrefs ? preferencesSnapshot() : null,
+        media: entries.map(e => ({ id: e.meta.id, name: e.meta.name, kind: e.meta.kind, mime: e.meta.mime, size: e.blob.size, created: e.meta.created,
+          favorite: !!e.meta.favorite, duration: e.meta.duration, albumIds: e.meta.albumIds, trashedAt: e.meta.trashedAt, path: e.path, crc32: e.crc }))
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest, null, 1)], { type: 'application/json' });
+      const zip = new ZipBuilder();
+      zip.add('manifest.json', manifestBlob, await crc32Blob(manifestBlob));
+      entries.forEach(e => zip.add(e.path, e.blob, e.crc));
+      const name = `vault-gallery-backup-${stamp}${parts.length > 1 ? `-part${p + 1}of${parts.length}` : ''}.zip`;
+      downloadBlob(zip.finish(), name);
+      exported += entries.length;
+      if (p < parts.length - 1) await sleep(900);      // give the browser time to start each download
+    }
+    prog.close();
+    const summary = [`${exported} file${exported === 1 ? '' : 's'} and ${state.albums.length} album${state.albums.length === 1 ? '' : 's'} were written to ${parts.length} ZIP file${parts.length === 1 ? '' : 's'}.`,
+      'Check your Downloads folder, and keep the backup somewhere safe. If your browser asks, allow multiple downloads.'];
+    if (parts.length > 1) summary.push('To restore, select ALL parts of this backup at once.');
+    await showReport(skipped.length || problems.length ? 'Backup created with warnings' : 'Backup created', summary, [...skipped, ...problems]);
+  } catch (err) {
+    prog.close();
+    if (err.name === 'CancelError') toast('Backup cancelled. No complete backup was produced.', 'warn');
+    else await showReport('The backup could not be completed', [friendlyError(err, null)], [...skipped, ...problems]);
+  }
+}
+
+/* ---------- Import: inspection and validation ---------- */
+function validateMediaEntry(m, part) {
+  if (!m || typeof m !== 'object') return 'not a valid record';
+  if (typeof m.id !== 'string' || !m.id || m.id.length > 100) return 'invalid id';
+  if (typeof m.name !== 'string' || !m.name.trim() || m.name.length > 300) return 'invalid file name';
+  if (m.kind !== 'image' && m.kind !== 'video') return 'unknown file type';
+  if (!Number.isFinite(m.size) || m.size < 0) return 'invalid size';
+  if (typeof m.path !== 'string' || !m.path) return 'no file path';
+  const entry = part.entries.get(m.path);
+  if (!entry) return 'the file data is missing from the archive';
+  if (entry.usize !== m.size) return 'size does not match the archive';
+  return null;
+}
+async function inspectBackup(files) {
+  const parts = [], problems = [];
+  for (const file of files) {
+    try {
+      const entries = await readZipIndex(file);
+      const me = entries.get('manifest.json');
+      if (!me) throw new BackupError('manifest.json is missing. This is not a Vault Gallery backup.');
+      if (me.usize > 100 * 1024 * 1024) throw new BackupError('manifest.json is unreasonably large.');
+      let manifest;
+      try { manifest = JSON.parse(await (await zipEntryBlob(file, me)).text()); } catch (e) { throw e instanceof BackupError ? e : new BackupError('manifest.json is not valid JSON (corrupted backup).'); }
+      if (!manifest || manifest.format !== BACKUP_FORMAT) throw new BackupError('This ZIP is not a Vault Gallery backup.');
+      if (!Number.isInteger(manifest.version) || manifest.version < 1) throw new BackupError('The backup has an invalid version number.');
+      if (manifest.version > BACKUP_VERSION) throw new BackupError(`This backup uses format version ${manifest.version}, which is newer than this app understands (version ${BACKUP_VERSION}). Update the app and try again.`);
+      if (!Array.isArray(manifest.media) || !Array.isArray(manifest.albums || [])) throw new BackupError('The backup manifest is malformed.');
+      parts.push({ file, entries, manifest });
+    } catch (err) { problems.push(`${file.name}: ${err.message}`); }
+  }
+  const ids = new Set(parts.map(p => p.manifest.backupId));
+  if (ids.size > 1) { problems.push('The selected files come from different backups. Select only the parts of one backup.'); return { parts: [], problems }; }
+  return { parts, problems };
+}
+/** Combines parts into one plan: valid items, invalid items, albums, duplicate flags, warnings. */
+function buildImportPlan(info) {
+  const albums = new Map(), valid = [], invalid = [], warnings = [];
+  const seen = new Set();
+  let prefs_ = null;
+  info.parts.forEach(part => {
+    (part.manifest.albums || []).forEach(a => { if (a && typeof a.id === 'string' && typeof a.name === 'string' && a.name.trim() && !albums.has(a.id)) albums.set(a.id, { id: a.id, name: a.name.trim().slice(0, 60), created: Number.isFinite(a.created) ? a.created : Date.now() }); });
+    if (part.manifest.preferences && !prefs_) prefs_ = part.manifest.preferences;
+    part.manifest.media.forEach(m => {
+      const problem = validateMediaEntry(m, part) || (seen.has(m.id) ? 'duplicate id inside the backup' : null);
+      if (problem) { invalid.push(`${(m && m.name) || '(unnamed)'}: ${problem}`); return; }
+      seen.add(m.id); valid.push({ m, part, entry: part.entries.get(m.path) });
+    });
+  });
+  const expected = Math.max(...info.parts.map(p => Number(p.manifest.parts) || 1));
+  const have = new Set(info.parts.map(p => p.manifest.part));
+  if (expected > have.size) warnings.push(`This backup has ${expected} parts but only ${have.size} ${have.size === 1 ? 'was' : 'were'} selected. Files from the missing parts will not be restored.`);
+  const existingIds = new Set(state.items.map(i => i.id));
+  const existingKeys = new Set(state.items.map(i => `${i.name}|${i.size}`));
+  valid.forEach(v => { v.dupId = existingIds.has(v.m.id); v.dupName = !v.dupId && existingKeys.has(`${v.m.name}|${v.m.size}`); });
+  return { valid, invalid, albums: [...albums.values()], prefs: prefs_, warnings, problems: info.problems, totalBytes: valid.reduce((s, v) => s + v.m.size, 0) };
+}
+
+/* ---------- Import: confirmation dialog ---------- */
+async function showImportDialog(plan) {
+  const dupes = plan.valid.filter(v => v.dupId || v.dupName).length;
+  const trashed = plan.valid.filter(v => v.m.trashedAt).length;
+  const large = plan.totalBytes > 500 * 1024 * 1024 || plan.valid.length > 300;
+  let estimate = null; try { estimate = await navigator.storage.estimate(); } catch (e) { /* ignore */ }
+  const free = estimate && estimate.quota ? estimate.quota - (estimate.usage || 0) : null;
+  const warnings = [...plan.warnings];
+  if (free !== null && plan.totalBytes > free * 0.95) warnings.push(`The backup needs about ${formatBytes(plan.totalBytes)} but the browser reports only about ${formatBytes(Math.max(0, free))} free. The restore may stop part-way when storage runs out (you will be offered an undo).`);
+  if (plan.invalid.length) warnings.push(`${plan.invalid.length} entr${plan.invalid.length === 1 ? 'y is' : 'ies are'} invalid and will be skipped.`);
+  if (plan.problems.length) warnings.push(...plan.problems);
+
+  return new Promise(resolve => {
+    const dlg = $('#importDialog'), body = $('#importBody'), ok = $('#importOk'), cancel = $('#importCancel');
+    const images = plan.valid.filter(v => v.m.kind === 'image').length, videos = plan.valid.length - images;
+    const policy = name => dupes ? el('fieldset', { class: 'policy' }, el('legend', { text: `${dupes} file${dupes === 1 ? '' : 's'} already exist in this library (same id, or same name and size). What should happen?` }),
+      el('label', {}, el('input', { type: 'radio', name, value: 'skip', checked: true }), ' Skip them (safe, nothing is overwritten)'),
+      el('label', {}, el('input', { type: 'radio', name, value: 'both' }), ' Keep both (import them as additional copies)')) : null;
+    const prefsBox = plan.prefs ? el('label', { class: 'check' }, el('input', { type: 'checkbox', id: 'impPrefs', checked: true }), ' Also restore preferences (theme, lock style, view, auto-lock, Trash period). Your lock sequence is not changed.') : null;
+    const bigBox = large ? el('label', { class: 'check warnbox' }, el('input', { type: 'checkbox', id: 'impLarge' }), ` I understand this is a large restore (${formatBytes(plan.totalBytes)}, ${plan.valid.length} files). It can take a while and I will keep this tab open.`) : null;
+    body.replaceChildren(
+      el('p', { text: `This backup contains ${plan.valid.length} file${plan.valid.length === 1 ? '' : 's'} (${images} image${images === 1 ? '' : 's'}, ${videos} video${videos === 1 ? '' : 's'}, ${formatBytes(plan.totalBytes)}), ${plan.albums.length} album${plan.albums.length === 1 ? '' : 's'}${trashed ? `, and ${trashed} item${trashed === 1 ? '' : 's'} that were in Trash` : ''}.` }),
+      warnings.length ? el('ul', { class: 'notice-list warn-list' }, warnings.map(w => el('li', { text: w }))) : null,
+      policy('dupPolicy'), prefsBox, bigBox,
+      el('p', { class: 'muted', text: 'Each file is checked against its checksum while it is restored. Files are added next to your existing library; nothing is replaced.' }));
+    const update = () => { ok.disabled = !plan.valid.length && !plan.albums.length || (large && !$('#impLarge').checked); };
+    if (bigBox) $('#impLarge', body).addEventListener('change', update);
+    ok.textContent = 'Restore'; update();
+    let done = false;
+    const finish = value => {
+      if (done) return; done = true;
+      ok.removeEventListener('click', onOk); cancel.removeEventListener('click', onCancel); dlg.removeEventListener('close', onCancel);
+      if (dlg.open) dlg.close(); resolve(value);
+    };
+    const onOk = () => finish({ policy: (body.querySelector('input[name=dupPolicy]:checked') || { value: 'skip' }).value, restorePrefs: !!(prefsBox && $('#impPrefs', body).checked) });
+    const onCancel = () => finish(null);
+    ok.addEventListener('click', onOk); cancel.addEventListener('click', onCancel); dlg.addEventListener('close', onCancel);
+    dlg.showModal();
+  });
+}
+
+/* ---------- Import: execution ---------- */
+function applySafePreferences(p) {
+  if (!p || typeof p !== 'object') return 0;
+  let n = 0;
+  if (['dark', 'light'].includes(p.theme)) { prefs.theme = p.theme; n++; }
+  if (['grid', 'list'].includes(p.view)) { prefs.view = p.view; n++; }
+  if ([0, 1, 5, 15, 30].includes(p.autoLockMinutes)) { prefs.autoLockMinutes = p.autoLockMinutes; n++; }
+  if (LOCK_STYLES[p.lockStyle]) { prefs.lockStyle = p.lockStyle; n++; }
+  if ([0, 7, 14, 30, 60, 90].includes(p.trashRetentionDays)) { prefs.trashRetentionDays = p.trashRetentionDays; n++; }
+  const c = p.custom;
+  if (c && typeof c === 'object') {
+    if (/^#[0-9a-f]{6}$/i.test(c.accent)) { prefs.custom.accent = c.accent; n++; }
+    if (['xo', 'numbers', 'dots', 'shapes'].includes(c.symbols)) prefs.custom.symbols = c.symbols;
+    if (['rounded', 'circle', 'square'].includes(c.shape)) prefs.custom.shape = c.shape;
+    if (['pop', 'pulse', 'none'].includes(c.animation)) prefs.custom.animation = c.animation;
+  }
+  savePrefs(); applyTheme(); return n;
+}
+function uniqueName(name, takenKeys, size) {
+  const dot = name.lastIndexOf('.'), base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  let candidate = `${base} (restored)${ext}`, i = 2;
+  while (takenKeys.has(`${candidate}|${size}`)) candidate = `${base} (restored ${i++})${ext}`;
+  return candidate;
+}
+async function rollbackImport(importedIds, createdAlbumIds) {
+  if (importedIds.length) await deleteMedia(importedIds);
+  for (const id of createdAlbumIds) await removeAlbum(id);
+}
+
+async function runImport(plan, { policy, restorePrefs }) {
+  const prog = openProgress('Restoring backup');
+  const result = { imported: 0, skipped: [], failed: [], albumsCreated: 0 };
+  const importedIds = [], createdAlbumIds = [];
+  let fatal = null;
+  try {
+    // 1) Albums first (tiny). Reuse an album with the same id or name; never overwrite.
+    prog.update('Preparing albums…', null);
+    const existingAlbums = await listAlbums();
+    const albumById_ = new Map(existingAlbums.map(a => [a.id, a])), albumByName = new Map(existingAlbums.map(a => [a.name.toLowerCase(), a]));
+    const albumMap = new Map();
+    for (const a of plan.albums) {
+      let target = albumById_.get(a.id) || albumByName.get(a.name.toLowerCase());
+      if (!target) {
+        target = { id: a.id, name: a.name, created: a.created, updated: Date.now() };
+        await putAlbum(target); createdAlbumIds.push(target.id); albumById_.set(target.id, target); albumByName.set(target.name.toLowerCase(), target); result.albumsCreated++;
+      }
+      albumMap.set(a.id, target.id);
+    }
+    // 2) Media: every item is written in its own transaction (record + bytes together), so the library
+    //    is consistent after every step even if the tab is closed or storage runs out part-way.
+    const existing = await listMeta();
+    const ids = new Set(existing.map(i => i.id)), keys = new Set(existing.map(i => `${i.name}|${i.size}`));
+    const total = Math.max(1, plan.totalBytes); let done = 0;
+    for (const v of plan.valid) {
+      if (prog.cancelled) { fatal = 'cancelled'; break; }
+      const m = v.m;
+      const isDup = v.dupId || ids.has(m.id) || keys.has(`${m.name}|${m.size}`);
+      if (isDup && policy === 'skip') { result.skipped.push(`${m.name}: already in this library`); done += m.size; continue; }
+      prog.update(`Restoring ${m.name}`, done / total);
+      try {
+        const raw = await zipEntryBlob(v.part.file, v.entry);
+        const crc = await crc32Blob(raw, n => { done += n; prog.update(`Restoring ${m.name}`, done / total); }, prog.isCancelled);
+        if (crc !== (v.entry.crc >>> 0) || (Number.isInteger(m.crc32) && crc !== (m.crc32 >>> 0))) throw new BackupError('checksum mismatch (the file in the backup is corrupted)');
+        const mime = typeof m.mime === 'string' && /^(image|video)\//.test(m.mime) ? m.mime : (EXT_MIME[extOf(m.name)] || (m.kind === 'video' ? 'video/mp4' : 'image/jpeg'));
+        const id = ids.has(m.id) ? uid() : m.id;
+        const name = keys.has(`${m.name}|${m.size}`) ? uniqueName(m.name, keys, m.size) : m.name;
+        const meta = normalizeMeta({
+          id, name, kind: m.kind, mime, size: raw.size, created: Number.isFinite(m.created) ? m.created : Date.now(),
+          favorite: !!m.favorite, duration: Number.isFinite(m.duration) ? m.duration : null,
+          albumIds: [...new Set((Array.isArray(m.albumIds) ? m.albumIds : []).map(a => albumMap.get(a)).filter(Boolean))],
+          trashedAt: Number.isFinite(m.trashedAt) ? m.trashedAt : null
+        });
+        await putImported(meta, raw.slice(0, raw.size, mime));
+        importedIds.push(id); ids.add(id); keys.add(`${name}|${raw.size}`); result.imported++;
+      } catch (err) {
+        if (err.name === 'CancelError') { fatal = 'cancelled'; break; }
+        if (err.name === 'QuotaExceededError') { fatal = 'quota'; result.failed.push(`${m.name}: not enough storage space`); break; }
+        result.failed.push(`${m.name}: ${err.message}`);
+      }
+    }
+    if (!fatal && restorePrefs) applySafePreferences(plan.prefs);
+  } catch (err) { fatal = err.name === 'QuotaExceededError' ? 'quota' : (err.message || 'unknown error'); }
+  prog.close();
+
+  // Offer an undo when the restore stopped early, so the library never stays half-imported unintentionally.
+  let rolledBack = false;
+  if (fatal && (importedIds.length || createdAlbumIds.length)) {
+    const why = fatal === 'cancelled' ? 'The restore was cancelled.' : fatal === 'quota' ? 'The browser ran out of storage space.' : `The restore stopped: ${fatal}.`;
+    const undo = await confirmAction({ title: 'Restore incomplete', message: `${why} ${importedIds.length} file${importedIds.length === 1 ? ' was' : 's were'} already restored and each is complete. Undo this restore and remove them again, or keep what was restored? (Restoring the same backup later with “Skip” continues where this stopped.)`, confirmLabel: 'Undo this restore', danger: true });
+    if (undo) { try { await rollbackImport(importedIds, createdAlbumIds); rolledBack = true; } catch (e) { result.failed.push('Undo failed: ' + e.message); } }
+  }
+  await refreshItems(); applyTheme();
+  const summary = [];
+  if (rolledBack) summary.push('The restore was undone. Your library is back to how it was.');
+  else summary.push(`${result.imported} file${result.imported === 1 ? '' : 's'} restored, ${result.skipped.length} skipped, ${result.failed.length + plan.invalid.length} failed${result.albumsCreated ? `, ${result.albumsCreated} album${result.albumsCreated === 1 ? '' : 's'} created` : ''}.`);
+  if (fatal && !rolledBack) summary.push(fatal === 'cancelled' ? 'The restore was cancelled before it finished.' : fatal === 'quota' ? 'It stopped because the browser ran out of storage space. Free some space and run the restore again with “Skip”.' : `It stopped early: ${fatal}.`);
+  await showReport(rolledBack ? 'Restore undone' : fatal ? 'Restore incomplete' : 'Restore finished', summary, [...result.failed, ...plan.invalid.map(s => s + ' (skipped)'), ...result.skipped]);
+}
+
+async function startRestore(fileList) {
+  const files = [...fileList]; if (!files.length) return;
+  if (!state.dbOk) { toast('Storage is unavailable, so nothing can be restored.', 'error'); return; }
+  const prog = openProgress('Checking backup', { cancellable: false });
+  prog.update('Reading and validating the backup…', null);
+  let info;
+  try { info = await inspectBackup(files); } finally { prog.close(); }
+  if (!info.parts.length) { await showReport('This backup cannot be restored', [...(info.problems.length ? info.problems : ['No valid backup file was selected.']), 'Nothing was changed.']); return; }
+  const plan = buildImportPlan(info);
+  if (!plan.valid.length && !plan.albums.length) { await showReport('Nothing to restore', ['The backup contains no usable files. Nothing was changed.'], [...plan.invalid, ...plan.problems]); return; }
+  const decision = await showImportDialog(plan);
+  if (!decision) return;
+  await runImport(plan, decision);
+}
+
+
+/* ==========================================================================
+   20. Settings
+   ========================================================================== */
+let settingsPicker = null, settingsSection = 'lock';
+function setSettingsSection(name) {
+  settingsSection = name;
+  document.querySelectorAll('.snav-btn').forEach(b => b.setAttribute('aria-current', String(b.dataset.section === name)));
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.toggle('hidden', s.dataset.section !== name));
+}
 function renderSettings() {
   settingsPicker = mountStylePicker($('#settingsStyleHost'), { style: prefs.lockStyle, custom: prefs.custom });
   $('#themeSelect').value = prefs.theme;
   $('#viewSelect').value = prefs.view;
   $('#autoLockSelect').value = String(prefs.autoLockMinutes);
+  $('#retentionSelect').value = String(prefs.trashRetentionDays || 0);
+  setSettingsSection(settingsSection);
   updateStorageInfo();
 }
 
 /* ==========================================================================
-   16. One-time event wiring (bound once, so there are no duplicate listeners)
+   21. One-time event wiring (bound once, so there are no duplicate listeners)
    ========================================================================== */
 function bindEvents() {
   document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  document.querySelectorAll('.snav-btn').forEach(b => b.addEventListener('click', () => setSettingsSection(b.dataset.section)));
   $('#lockNow').addEventListener('click', () => lockApp('Workspace locked.'));
 
   // Upload
   $('#addBtn').addEventListener('click', () => $('#mediaInput').click());
   $('#mediaInput').addEventListener('change', e => { enqueueFiles(e.target.files); e.target.value = ''; });
 
-  // Drag & drop
+  // Drag & drop (only on the gallery tab)
   let dragDepth = 0;
   const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
   const appVisible = () => !$('#shell').classList.contains('hidden');
-  window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); if (appVisible()) { dragDepth++; $('#dropOverlay').classList.remove('hidden'); } });
+  window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); if (appVisible() && state.tab === 'gallery') { dragDepth++; $('#dropOverlay').classList.remove('hidden'); } });
   window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
   window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('#dropOverlay').classList.add('hidden'); });
   window.addEventListener('drop', e => {
@@ -1369,18 +2407,34 @@ function bindEvents() {
     if (appVisible() && state.tab === 'gallery') enqueueFiles(e.dataTransfer.files);
   });
 
-  // Toolbar
+  // Gallery toolbar
   let searchTimer;
   $('#searchInput').addEventListener('input', e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = e.target.value; renderGallery(); }, 150); });
   $('#filterSelect').addEventListener('change', e => { state.filter = e.target.value; renderGallery(); });
   $('#sortSelect').addEventListener('change', e => { state.sort = e.target.value; renderGallery(); });
+  $('#albumFilter').addEventListener('change', e => { state.albumFilter = e.target.value; state.selected.clear(); renderChrome(); renderGallery(); });
   const setView = view => { prefs.view = view; savePrefs(); renderGallery(); };
   $('#viewGrid').addEventListener('click', () => setView('grid'));
   $('#viewList').addEventListener('click', () => setView('list'));
-  $('#selectToggle').addEventListener('click', () => { state.selectMode = !state.selectMode; if (!state.selectMode) state.selected.clear(); renderGallery(); });
-  $('#selectDone').addEventListener('click', () => { state.selectMode = false; state.selected.clear(); renderGallery(); });
-  $('#selectAll').addEventListener('click', () => { visibleItems().forEach(i => state.selected.add(i.id)); renderGallery(); });
-  $('#deleteSelected').addEventListener('click', () => deleteItems([...state.selected]));
+  $('#selectToggle').addEventListener('click', () => { state.selectMode = !state.selectMode; if (!state.selectMode) state.selected.clear(); renderGallery(); updateSelectBar(); });
+  $('#selectDone').addEventListener('click', () => { state.selectMode = false; state.selected.clear(); renderGallery(); updateSelectBar(); });
+  $('#selectAll').addEventListener('click', () => { visibleItems().forEach(i => state.selected.add(i.id)); renderGallery(); updateSelectBar(); });
+  $('#bulkAlbum').addEventListener('click', () => assignAlbumsFlow([...state.selected]));
+  $('#bulkRemoveAlbum').addEventListener('click', () => { if (currentAlbum()) removeFromAlbum([...state.selected], state.albumFilter); });
+  $('#deleteSelected').addEventListener('click', () => trashFlow([...state.selected]));
+
+  // Album banner / Albums tab
+  $('#albumBack').addEventListener('click', () => showTab('albums'));
+  $('#albumRename').addEventListener('click', () => { const a = currentAlbum(); if (a) renameAlbumFlow(a); });
+  $('#albumDelete').addEventListener('click', () => { const a = currentAlbum(); if (a) deleteAlbumFlow(a); });
+  $('#newAlbumBtn').addEventListener('click', createAlbumFlow);
+
+  // Trash tab
+  $('#emptyTrash').addEventListener('click', emptyTrashFlow);
+  $('#trashSelectAll').addEventListener('click', () => { trashedItems().forEach(i => state.trashSelected.add(i.id)); renderTrash(); updateTrashBar(); });
+  $('#trashRestoreSel').addEventListener('click', () => restoreItems([...state.trashSelected]));
+  $('#trashDeleteSel').addEventListener('click', () => deleteForever([...state.trashSelected]));
+  $('#trashClearSel').addEventListener('click', () => { state.trashSelected.clear(); renderTrash(); updateTrashBar(); });
 
   // Settings
   $('#applyStyle').addEventListener('click', () => {
@@ -1390,35 +2444,45 @@ function bindEvents() {
   });
   $('#changeSeq').addEventListener('click', () => showLockView('change'));
   $('#themeSelect').addEventListener('change', e => { prefs.theme = e.target.value; applyTheme(); savePrefs(); });
-  $('#viewSelect').addEventListener('change', e => { prefs.view = e.target.value; savePrefs(); renderGallery(); });
+  $('#viewSelect').addEventListener('change', e => { prefs.view = e.target.value; savePrefs(); });
   $('#autoLockSelect').addEventListener('change', e => { prefs.autoLockMinutes = Number(e.target.value); savePrefs(); resetIdle(); });
+  $('#retentionSelect').addEventListener('change', async e => {
+    prefs.trashRetentionDays = Number(e.target.value); savePrefs(); renderChrome();
+    if (prefs.trashRetentionDays) toast(`Items in Trash older than ${prefs.trashRetentionDays} days will be offered for permanent deletion. You are always asked first.`, 'info', 7000);
+    await checkExpiredTrash();
+  });
   $('#persistBtn').addEventListener('click', async () => {
     if (!(navigator.storage && navigator.storage.persist)) { toast('This browser does not support persistent storage requests.', 'warn'); return; }
     try { const granted = await navigator.storage.persist(); toast(granted ? 'Persistent storage granted.' : 'The browser declined. It may grant it once the site is used more or bookmarked.', granted ? 'success' : 'warn'); }
     catch (e) { toast('Request failed: ' + e.message, 'error'); }
     updateStorageInfo();
   });
+  $('#backupBtn').addEventListener('click', () => createBackup({ includeTrash: $('#bkTrash').checked, includePrefs: $('#bkPrefs').checked, partBytes: Number($('#bkPart').value) }));
+  $('#restoreBtn').addEventListener('click', () => $('#restoreInput').click());
+  $('#restoreInput').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; startRestore(files); });
   $('#resetPrefs').addEventListener('click', async () => {
-    const ok = await confirmAction({ title: 'Reset preferences?', message: 'Theme, lock style, view and auto-lock return to defaults. Your sequence and media are not touched.', confirmLabel: 'Reset' });
+    const ok = await confirmAction({ title: 'Reset preferences?', message: 'Theme, lock style, view, auto-lock and Trash period return to defaults. Your sequence, albums and media are not touched.', confirmLabel: 'Reset' });
     if (!ok) return;
-    prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS)); savePrefs(); applyTheme(); renderSettings(); renderGallery();
+    prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS)); savePrefs(); applyTheme(); renderSettings();
     toast('Preferences reset.', 'success');
   });
   $('#eraseAll').addEventListener('click', async () => {
-    const ok = await confirmAction({ title: 'Erase everything?', message: 'This deletes ALL media, your lock sequence and your preferences from this browser. It cannot be undone.', confirmLabel: 'Erase all', danger: true, requireText: 'ERASE' });
+    const ok = await confirmAction({ title: 'Erase everything?', message: 'This deletes ALL media (including Trash), albums, your lock sequence and your preferences from this browser. It cannot be undone. Create a backup first if you may need your files.', confirmLabel: 'Erase all', danger: true, requireText: 'ERASE' });
     if (!ok) return;
     try {
       await clearAllMedia();
       [PREFS_KEY, CRED_KEY, LEGACY_PATTERN_KEY, LEGACY_MEDIA_KEY].forEach(k => localStorage.removeItem(k));
       prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS)); applyTheme();
-      state.items = []; state.loaded = false; revokeAllUrls();
+      state.items = []; state.albums = []; state.loaded = false; revokeAllUrls();
       showLockView('setup'); toast('All data erased.', 'success');
-    } catch (err) { toast('Could not erase everything: ' + err.message, 'error'); }
+    } catch (err) { toast('Could not erase everything: ' + friendlyError(err, null), 'error'); }
   });
 }
 
+
+
 /* ==========================================================================
-   17. Carry over media from the original localStorage version
+   22. Carry over media from the original localStorage version
    ========================================================================== */
 async function migrateLegacyMedia() {
   let raw; try { raw = localStorage.getItem(LEGACY_MEDIA_KEY); } catch (e) { return; }
@@ -1437,8 +2501,9 @@ async function migrateLegacyMedia() {
   if (moved) { toast(`Moved ${moved} item${moved === 1 ? '' : 's'} from the old storage.`, 'success'); await refreshItems(); }
 }
 
+
 /* ==========================================================================
-   18. Start-up
+   23. Start-up
    ========================================================================== */
 async function init() {
   applyTheme();
